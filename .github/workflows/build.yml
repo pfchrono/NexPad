@@ -23,12 +23,14 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Set version label
+        id: version_label
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}"
           if ("${{ github.ref_type }}" -ne "tag") {
             $version = "${{ github.sha }}".Substring(0, 7)
           }
+          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "VERSION_LABEL=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build and package release artifacts
@@ -36,12 +38,18 @@ jobs:
         run: |
           .\scripts\package-release.ps1 -Version $env:VERSION_LABEL
 
+      - name: Verify packaged artifact checksums
+        shell: pwsh
+        run: |
+          .\scripts\verify-release-checksums.ps1
+
       - name: Upload packaged artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NexPad-${{ env.VERSION_LABEL }}
+          name: NexPad-${{ steps.version_label.outputs.value }}
           path: |
             artifacts/*.zip
+            artifacts/*.sha256
 
       - name: Publish release assets
         if: github.ref_type == 'tag'
@@ -49,4 +57,5 @@ jobs:
         with:
           files: |
             artifacts/*.zip
+            artifacts/*.sha256
           generate_release_notes: true

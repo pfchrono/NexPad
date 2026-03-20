@@ -21,13 +21,16 @@ Build and package
 2. Confirm these archives are produced under `artifacts/`:
    - `NexPad-win32-v0.1.0.zip`
    - `NexPad-x64-v0.1.0.zip`
+   - `NexPad-win32-v0.1.0.zip.sha256`
+   - `NexPad-x64-v0.1.0.zip.sha256`
 3. Open both zip files and verify they contain:
    - `NexPad.exe`
    - `config.ini`
    - `presets/`
    - `README.md`
    - `LICENSE`
-4. Smoke-test at least one packaged build on a clean directory.
+4. Verify the checksum files reference the matching zip file names and contain SHA256 hashes.
+5. Smoke-test at least one packaged build on a clean directory.
 
 GitHub workflow
 ======
@@ -35,13 +38,13 @@ GitHub workflow
 1. Push the latest `main` branch.
 2. Confirm the GitHub Actions workflow completes successfully.
 3. If you are cutting a release, create and push a version tag such as `v0.1.0`.
-4. Confirm the tag-triggered workflow uploads both packaged zip artifacts.
+4. Confirm the tag-triggered workflow uploads the packaged zip artifacts and checksum files.
 
 Publish release
 ======
 
 1. Draft the GitHub release notes.
-2. Attach the packaged zip files from the workflow artifacts or local `artifacts/` output.
+2. Attach the packaged zip files and checksum files from the workflow artifacts or local `artifacts/` output.
 3. Include any breaking changes, controller support changes, or config changes in the release notes.
 4. Publish the release.
 

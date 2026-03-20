@@ -78,6 +78,19 @@ function New-ZipFromDirectory {
   Compress-Archive -Path (Join-Path $SourceDirectory "*") -DestinationPath $ZipPath -CompressionLevel Optimal
 }
 
+function Write-ChecksumFile {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath
+  )
+
+  $hash = Get-FileHash -Path $FilePath -Algorithm SHA256
+  $checksumPath = "$FilePath.sha256"
+  $line = "{0} *{1}" -f $hash.Hash.ToLowerInvariant(), (Split-Path $FilePath -Leaf)
+  Set-Content -Path $checksumPath -Value $line -Encoding ascii
+  return $checksumPath
+}
+
 $solutionPath = Join-Path $RepoRoot "Windows\NexPad.sln"
 $releaseRoot = Join-Path $RepoRoot "release"
 $artifactsRoot = Join-Path $RepoRoot "artifacts"
@@ -123,6 +136,11 @@ $x64Zip = Join-Path $artifactsRoot ("NexPad-x64-{0}.zip" -f $Version)
 New-ZipFromDirectory -SourceDirectory $win32Stage -ZipPath $win32Zip
 New-ZipFromDirectory -SourceDirectory $x64Stage -ZipPath $x64Zip
 
+$win32Checksum = Write-ChecksumFile -FilePath $win32Zip
+$x64Checksum = Write-ChecksumFile -FilePath $x64Zip
+
 Write-Host "Packaged artifacts:"
 Write-Host " - $win32Zip"
 Write-Host " - $x64Zip"
+Write-Host " - $win32Checksum"
+Write-Host " - $x64Checksum"

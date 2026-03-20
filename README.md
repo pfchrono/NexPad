@@ -215,6 +215,11 @@ To build and package release artifacts locally:
 
 This generates zipped Win32 and x64 release artifacts under `artifacts/` using the same `release/` layout produced by the Visual Studio project.
 
+Each packaged zip also gets a matching SHA256 checksum file next to it:
+
+* `NexPad-win32-<version>.zip.sha256`
+* `NexPad-x64-<version>.zip.sha256`
+
 The current release notes source for the published `v0.1.0` release lives in `docs/releases/v0.1.0.md`.
 
 GitHub Publishing
@@ -227,8 +232,8 @@ Continuous integration is defined in `.github/workflows/build.yml` and will:
 * build on pushes to `main`
 * build on version tags matching `v*`
 * run manually through `workflow_dispatch`
-* upload packaged release zip files as workflow artifacts
-* attach packaged zip files directly to GitHub Releases for tag builds
+* upload packaged release zip files and checksum files as workflow artifacts
+* attach packaged zip files and checksum files directly to GitHub Releases for tag builds
 
 Typical publish flow:
 
