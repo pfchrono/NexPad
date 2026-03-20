@@ -1,5 +1,8 @@
 name: Build NexPad
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
@@ -39,3 +42,11 @@ jobs:
           name: NexPad-${{ env.VERSION_LABEL }}
           path: |
             artifacts/*.zip
+
+      - name: Publish release assets
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.zip
+          generate_release_notes: true

@@ -215,6 +215,7 @@ Continuous integration is defined in `.github/workflows/build.yml` and will:
 * build on version tags matching `v*`
 * run manually through `workflow_dispatch`
 * upload packaged release zip files as workflow artifacts
+* attach packaged zip files directly to GitHub Releases for tag builds
 
 Typical publish flow:
 
