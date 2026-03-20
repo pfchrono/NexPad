@@ -172,6 +172,41 @@ namespace
   void applyControlTheme(HWND control);
   std::string getComboItemText(HWND comboBox, UINT itemId);
 
+  void applyEditPadding(HWND control, int horizontalPadding = 8, int verticalPadding = 6)
+  {
+    if (control == NULL)
+    {
+      return;
+    }
+
+    const LONG style = GetWindowLongA(control, GWL_STYLE);
+    if ((style & ES_MULTILINE) != 0)
+    {
+      RECT rect = {};
+      GetClientRect(control, &rect);
+      rect.left += horizontalPadding;
+      rect.right -= horizontalPadding;
+      rect.top += verticalPadding;
+      rect.bottom -= verticalPadding;
+
+      if (rect.right <= rect.left)
+      {
+        rect.right = rect.left + 1;
+      }
+
+      if (rect.bottom <= rect.top)
+      {
+        rect.bottom = rect.top + 1;
+      }
+
+      SendMessageA(control, EM_SETRECTNP, 0, reinterpret_cast<LPARAM>(&rect));
+      InvalidateRect(control, NULL, TRUE);
+      return;
+    }
+
+    SendMessageA(control, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, MAKELPARAM(horizontalPadding, horizontalPadding));
+  }
+
   bool isEditControl(HWND control)
   {
     if (control == NULL)
@@ -1739,11 +1774,14 @@ namespace
     const int textHeight = (pageHeight - textTop - margin * 2) / 2;
     MoveWindow(state->startupInfo, margin, textTop, pageWidth - margin * 2, textHeight, TRUE);
     MoveWindow(state->outputInfo, margin, textTop + textHeight + margin, pageWidth - margin * 2, pageHeight - textTop - textHeight - margin * 2, TRUE);
+    applyEditPadding(state->startupInfo);
+    applyEditPadding(state->outputInfo);
 
     MoveWindow(state->speedLabel, margin, margin, 160, labelHeight, TRUE);
     MoveWindow(state->speedCombo, margin, margin + 20, pageWidth - margin * 2, 300, TRUE);
     MoveWindow(state->scrollLabel, margin, margin + 56, 160, labelHeight, TRUE);
     MoveWindow(state->scrollEdit, margin, margin + 76, 120, 24, TRUE);
+    applyEditPadding(state->scrollEdit, 6, 0);
     MoveWindow(state->swapCheck, margin, margin + 112, pageWidth - margin * 2, 24, TRUE);
     MoveWindow(state->applyButton, margin, margin + 152, 130, 28, TRUE);
     MoveWindow(state->saveButton, margin + 142, margin + 152, 130, 28, TRUE);
@@ -1752,6 +1790,7 @@ namespace
     MoveWindow(state->presetList, margin, margin + 226, 260, 220, TRUE);
     MoveWindow(state->presetNameLabel, margin + 272, margin + 206, 160, labelHeight, TRUE);
     MoveWindow(state->presetNameEdit, margin + 272, margin + 226, 220, 24, TRUE);
+    applyEditPadding(state->presetNameEdit, 6, 0);
     MoveWindow(state->presetSaveButton, margin + 504, margin + 224, 110, 28, TRUE);
     MoveWindow(state->presetRefreshButton, margin + 272, margin + 260, 110, 28, TRUE);
     MoveWindow(state->presetDeleteButton, margin + 394, margin + 260, 110, 28, TRUE);
@@ -1760,6 +1799,7 @@ namespace
     MoveWindow(state->settingsNote, margin, margin + 340, pageWidth - margin * 2, 36, TRUE);
 
     MoveWindow(state->mappingsHelp, margin, margin, helpWidth, pageHeight - margin * 2, TRUE);
+    applyEditPadding(state->mappingsHelp);
 
     const int mappingsLeft = margin + helpWidth + gap;
     const int mappingsWidth = pageWidth - mappingsLeft - margin;
