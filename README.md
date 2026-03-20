@@ -158,11 +158,6 @@ Mappings tab:
 
 ![NexPad Mappings Tab](docs/assets/screenshots/mappings-tab.png)
 
-Demo videos:
-
-* https://www.youtube.com/watch?v=UWYUodeontM
-* https://www.youtube.com/watch?v=8APmA1ohPdM
-
 Build From Source
 ======
 
