@@ -146,7 +146,7 @@ NexPad can use the DualSense touchpad as an additional mouse input source when t
 Current scope:
 
 * DualSense only
-* movement only
+* movement plus tap-to-click
 * additive to the existing stick mouse control
 * enabled by default in the shipped config
 * adjustable from the Settings tab or `config.ini`
@@ -159,7 +159,7 @@ TOUCHPAD_DEAD_ZONE = 2
 TOUCHPAD_SPEED = 1.200
 ```
 
-The Settings tab now exposes touchpad enable, speed, and dead zone controls for live tuning and save/reload workflows.
+The Settings tab now exposes touchpad enable, speed, and dead zone controls for live tuning and save/reload workflows. A short touchpad tap without pointer drag also triggers a left click.
 
 Reference links:
 

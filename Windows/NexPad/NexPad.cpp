@@ -794,6 +794,9 @@ void NexPad::setDisabled(bool disabled)
   int duration = 400;
   int intensity = 65000;
   _disabled = disabled;
+  _touchpadTouchWasActive = false;
+  _touchpadTapMoved = false;
+  _touchpadTapStartTick = 0;
 
   if (_disabled)
   {
@@ -865,6 +868,7 @@ void NexPad::loop()
   // Mouse functions
   handleMouseMovement();
   handleScrolling();
+  handleTouchpadTapGesture();
 
   if (CONFIG_MOUSE_LEFT)
   {
@@ -1128,8 +1132,52 @@ void NexPad::handleTouchpadMovement(float& dx, float& dy)
     return;
   }
 
+  _touchpadTapMoved = true;
+
   dx += static_cast<float>(touchpad.deltaX) * TOUCHPAD_SPEED;
   dy -= static_cast<float>(touchpad.deltaY) * TOUCHPAD_SPEED;
+}
+
+void NexPad::handleTouchpadTapGesture()
+{
+  const DWORD TOUCHPAD_TAP_MAX_DURATION_MS = 250;
+  const CXBOXController::TouchpadState touchpad = _controller->GetTouchpadState();
+
+  if (TOUCHPAD_ENABLED == 0 || !touchpad.available)
+  {
+    _touchpadTouchWasActive = false;
+    _touchpadTapMoved = false;
+    _touchpadTapStartTick = 0;
+    return;
+  }
+
+  if (touchpad.active)
+  {
+    if (!_touchpadTouchWasActive)
+    {
+      _touchpadTouchWasActive = true;
+      _touchpadTapMoved = false;
+      _touchpadTapStartTick = GetTickCount();
+    }
+
+    return;
+  }
+
+  if (!_touchpadTouchWasActive)
+  {
+    return;
+  }
+
+  const DWORD tapDuration = GetTickCount() - _touchpadTapStartTick;
+  if (!_touchpadTapMoved && tapDuration <= TOUCHPAD_TAP_MAX_DURATION_MS)
+  {
+    mouseEvent(MOUSEEVENTF_LEFTDOWN);
+    mouseEvent(MOUSEEVENTF_LEFTUP);
+  }
+
+  _touchpadTouchWasActive = false;
+  _touchpadTapMoved = false;
+  _touchpadTapStartTick = 0;
 }
 
 // Description:

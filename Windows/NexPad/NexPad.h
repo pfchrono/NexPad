@@ -52,6 +52,9 @@ private:
 
   float _xRest = 0.0f;
   float _yRest = 0.0f;
+  bool _touchpadTouchWasActive = false;
+  bool _touchpadTapMoved = false;
+  DWORD _touchpadTapStartTick = 0;
 
   bool _disabled = false;           // Disables the NexPad controller mapping.
   bool _vibrationDisabled = false;  // Prevents NexPad from producing controller vibrations. 
@@ -131,6 +134,8 @@ public:
   void handleMouseMovement();
 
   void handleTouchpadMovement(float& dx, float& dy);
+
+  void handleTouchpadTapGesture();
 
   void handleDisableButton();
 
