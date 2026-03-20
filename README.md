@@ -144,9 +144,19 @@ If you create configs that are generally useful, add them under `Configs/` for s
 Screenshots
 ======
 
-Controller navigation in action:
+Actual NexPad UI captures:
 
-![Controller GIF](https://thumbs.gfycat.com/ElasticUnrulyBighorn-max-1mb.gif)
+Status tab:
+
+![NexPad Status Tab](docs/assets/screenshots/status-tab.png)
+
+Settings tab:
+
+![NexPad Settings Tab](docs/assets/screenshots/settings-tab.png)
+
+Mappings tab:
+
+![NexPad Mappings Tab](docs/assets/screenshots/mappings-tab.png)
 
 Demo videos:
 
