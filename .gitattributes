@@ -1,0 +1,24 @@
+# Normalize text files by default.
+* text=auto
+
+# Keep Windows-native project files on CRLF for Visual Studio.
+*.sln text eol=crlf
+*.vcxproj text eol=crlf
+*.vcxproj.filters text eol=crlf
+*.rc text eol=crlf
+*.h text eol=crlf
+*.cpp text eol=crlf
+*.ini text eol=crlf
+
+# Keep docs and agent metadata on LF.
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+LICENSE text eol=lf
+
+# Binary assets.
+*.ico binary
+*.aps binary
+*.suo binary
+*.pdb binary
+*.exe binary

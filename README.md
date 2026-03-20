@@ -5,55 +5,32 @@ Controller-first desktop navigation for Windows.
 
 NexPad is a lightweight Windows utility that maps controller input to mouse and keyboard actions for desktop navigation, media control, and couch-first PC use. It is designed for living-room PCs, handhelds, and setups where a gamepad is more practical than a keyboard and mouse.
 
-Highlights
-======
-
-* Controller-driven cursor movement and scrolling
-* Mouse click and keyboard mapping support
-* Live settings and preset management in the native Windows UI
-* Xbox XInput support plus PlayStation HID fallback already present in the codebase
-* Small native Windows footprint with no runtime-heavy frontend stack
-
-Compatible Controllers
-======
-### Xbox 360
-* [Official Wired Xbox 360 Controller for Windows](https://www.amazon.com/Microsoft-Wired-Controller-Windows-Console/dp/B004QRKWLA/)
-* [Official Wireless Xbox 360 Controller](https://www.amazon.com/Xbox-360-Wireless-Controller-Glossy-microsoft/dp/B003ZSP0WW/)
-* [A compatible wireless adapter](https://www.amazon.com/Microsoft-Xbox-Wireless-Receiver-Windows/dp/B000HZFCT2/) is required to get a standard controller to connect to a Windows PC)
-
-### Xbox One
-* [Offical Xbox One Wireless Controller](https://www.amazon.com/Xbox-Wireless-Controller-Black-one/dp/B01LPZM7VI/)
-* [A bluetooth adapter/antenna](https://www.amazon.com/Bluetooth-Wireless-Headphone-Controller-Keyboard/dp/B0774NZNGX/) is needed for XBone controller Bluetooth mode. Many laptops and tablets will *already* have this. Read the manual!
-* [A wireless adapter](https://www.amazon.com/Microsoft-Xbox-Wireless-Adapter-Windows-one/dp/B00ZB7W4QU/) is needed if you want wireless mode.
-* [A decently long MicroUSB cable](https://www.amazon.com/Charger-Durable-Charging-Smartphones-Motorola/dp/B06XZTK2JL/) will be needed for comfortable direct wired mode usage. This is the cheapest option if you already have the controller and no Bluetooth antenna!
-
-### DualShock
-DualShock controllers are great, but you NEED to emulate Xinput for NexPad to see and understand them. Fortunately, Xinput emulation is a very popular thing, as there are just as many people with DualShock controllers as there are Xbox controllers. Listings coming soon.
-
-### Third party
-SOME third party controllers will most likely work as well. I haven't seen one not work, but I'd imagine some wouldn't. Research before buying, NexPad expects native Xinput devices, so the controller should as well. I won't be listing any for now until I know what ones will work. If I can find one that does the job and saves you from Microsoft's extreme profit margins, I'll list it.
-
 Table of contents
 =================
 
-  * [About](#about-nexpad)
+  * [Overview](#overview)
   * [Features](#features)
+  * [Install](#install)
+  * [Usage](#usage)
   * [Default Controls](#default-controls)
-  * [Requirements](#requirements)
-  * [DualShock Controllers](#using-dualshock-controllers)
-  * [Re-binding Controls](#config-file-instructions)
-  * [Building](#build-instructions)
-  * [Build Output Layout](#build-output-layout)
+  * [Controller Support](#controller-support)
+  * [Configuration](#configuration)
+  * [Screenshots](#screenshots)
+  * [Build From Source](#build-from-source)
+  * [GitHub Publishing](#github-publishing)
   * [License](#license)
 
-
-
-About NexPad
+Overview
 ======
 
 NexPad turns a controller into a practical Windows input device. Analog sticks handle cursor movement and scrolling, buttons trigger clicks and keys, and the app stays small, fast, and configurable.
 
-NexPad separates itself from the competition by being efficient, small, portable, free, and fully open. If you have something you'd like to see improved, added, or changed, please fill out the survey.
+The current codebase includes:
+
+* A native Windows configuration UI
+* Preset save, load, import, and export support
+* Xbox XInput controller support
+* PlayStation HID fallback already integrated into the controller layer
 
 Features
 ======
@@ -64,120 +41,144 @@ Features
 * Keyboard mapping for controller buttons and triggers
 * Enable and disable toggle shortcuts
 * Preset save, load, import, and export support
-* Native Windows configuration UI
+* Small native Windows footprint with no runtime-heavy frontend stack
+
+Install
+======
+
+Packaged builds can be distributed through the repository's Releases page once releases are published.
+
+For a manual local setup:
+
+1. Build or download `NexPad.exe`.
+2. Keep `config.ini` next to the executable.
+3. Keep the `presets/` folder next to the executable if you want preset management.
+4. Launch `NexPad.exe` and connect a supported controller.
 
 Requirements
 ======
-NexPad is incredibly great at being a standalone program, but with one major exception: it absolutely needs Visual C++ 2015 Runtimes to be installed. If you have run Windows Updates at least once in the lifetime of your computer, this really won't be an issue.
 
-Using DualShock Controllers
-======
-DualShock controllers don't use typical xinput libraries like the X360 and Xbone controllers do, so you'll need something like InputMapper, SCP, DS4Windows, or DS3Tool to "emulate" an xinput device in order to get xinput-using applications like NexPad to understand it. NexPad DOES NOT automatically offer these emulation layers ( yet ;) ), so you'll need to use something to emulate it before NexPad can understand it.
+NexPad targets Windows and depends on the Visual C++ runtime already expected by the Visual Studio toolchain. On up-to-date Windows 10 or 11 systems this is usually already available.
 
-Video Demonstration
+Usage
 ======
 
-https://vine.co/v/MYadBgWXuWY
+Typical usage flow:
 
-[![NexPad Video 1](http://img.youtube.com/vi/UWYUodeontM/0.jpg)](https://www.youtube.com/watch?v=UWYUodeontM)
+1. Launch NexPad.
+2. Connect an Xbox controller, or a PlayStation controller supported through the app's current HID path.
+3. Move the mouse with the configured analog stick.
+4. Use the Status tab to quickly enable or disable mapping.
+5. Use the Settings and Mappings tabs to adjust live behavior and save presets.
 
-[![NexPad Video 2](http://img.youtube.com/vi/8APmA1ohPdM/0.jpg)](https://www.youtube.com/watch?v=8APmA1ohPdM)
-
-
-Download Instructions
-======
-
-Use the repository's Releases page for packaged builds when releases are published.
-
-I recommend that you copy it somewhere outside of the ZIP and make a shortcut to it. Adding it to your startup folder in your HTPC can make bootups a lot more convenient!
+If you want NexPad available at boot for a couch or HTPC setup, add a shortcut to your Startup folder after you confirm your config behaves the way you want.
 
 Default Controls
 ======
-NexPad automatically generates a config file, which will contain documentation information on all input types and key bindings.
 
-**A**: Left Mouse-Click.
+NexPad automatically generates a config file with documentation for each binding.
 
-**X**: Right Mouse-click.
+* `A`: Left mouse click
+* `X`: Right mouse click
+* `Y`: Hide window or open the mapped OSK action depending on config
+* `B`: Enter or mapped key action
+* `D-pad`: Arrow keys
+* `Left Analog`: Mouse movement
+* `Left Analog Click`: Middle mouse click
+* `Right Analog`: Scroll up and down
+* `Right Analog Click`: `F2`
+* `Back`: Browser refresh or mapped key action
+* `Start`: Left Windows key or mapped key action
+* `Start + Back`: Toggle NexPad on and off
+* `Start + DPad Up`: Toggle vibration setting
+* `LBumper`: Browser previous
+* `RBumper`: Browser next
+* `LBumper + RBumper`: Cycle speed presets
+* `LTrigger`: Space
+* `RTrigger`: Backspace
 
-**Y**: Hide terminal.
-
-**B**: Enter.
-
-**D-pad**: Arrow keys.
-
-**Right Analog**: Scroll up/down.
-
-**Right Analog Click**: F2.
-
-**Left Analog**: Mouse.
-
-**Left Analog Click**: Middle mouse click.
-
-**Back**: Browser refresh
-
-**Start**: Left Windows Key
-
-**Start + Back**: Toggle. Useful for when you launch emulators or open Steam Big Picture mode. Press again to re-enable.
-
-**Start + DPad Up**: Toggle NexPad vibration setting.
-
-**LBumper**: Browser previous
-
-**RBumper**: Browser next
-
-**LBumber + RBummper**: Cycle speed (x3)
-
-**LTrigger**: Space
-
-**RTrigger**: Backspace
-
-Config file instructions
+Controller Support
 ======
-There is a configuration file (config.ini) that can be reconfigured for simple keybindings.
+
+Xbox controllers
+
+* Xbox 360 controllers through native XInput support
+* Xbox One and newer XInput-compatible controllers
+* Compatible third-party XInput controllers
+
+PlayStation controllers
+
+* PlayStation controllers may require XInput emulation tools in some setups
+* The current codebase also includes native HID fallback logic for supported PlayStation devices
+
+Third-party controllers
+
+* Many third-party pads work if they present themselves as XInput-compatible devices
+* Research your specific controller before relying on it for a living-room setup
+
+Configuration
+======
+
+NexPad reads `config.ini` from the working directory.
 
 If you delete or break the active config file, NexPad can generate a fresh one on the next run.
 
-You can set which controller buttons will activate the configuration events based on the official microsoft keys hexadecimal values.
+Important config groups:
 
-Virtual Windows Keys:
-https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731
+* `CONFIG_*`: controller actions such as mouse clicks, disable toggle, and OSK toggle
+* `GAMEPAD_*`: keyboard mappings for controller buttons
+* `ON_ENABLE` and `ON_DISABLE`: optional key events when mapping is toggled
+* `CURSOR_SPEED`, `SCROLL_SPEED`, `SWAP_THUMBSTICKS`, and dead-zone values: movement behavior
 
-XInput Controller Buttons:
-https://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.reference.xinput_gamepad%28v=vs.85%29.aspx
+Reference links:
 
-More instruction in the configuration file.
+* Virtual Windows keys: https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731
+* XInput button values: https://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.reference.xinput_gamepad%28v=vs.85%29.aspx
 
+If you create configs that are generally useful, add them under `Configs/` for sharing.
 
-```diff
-+ If you make a config file you feel could benefit people with the same use scenario as you, feel free to make a pull request for it in the public configs directory.
-```
-
-
-Build Instructions
+Screenshots
 ======
-Building is pretty straightforward, but you may get a "missing win32 include" error due to the solution targetting. Simply follow the instructions the error provides (Project -> Retarget solution) to ensure your project has a working link to the libraries it needs.
 
-The Windows project now targets the Visual Studio 2022 `v143` toolset. You can build from Visual Studio with `Windows/NexPad.sln` or from the command line with MSBuild:
+Controller navigation in action:
+
+![Controller GIF](https://thumbs.gfycat.com/ElasticUnrulyBighorn-max-1mb.gif)
+
+Demo videos:
+
+* https://www.youtube.com/watch?v=UWYUodeontM
+* https://www.youtube.com/watch?v=8APmA1ohPdM
+
+Build From Source
+======
+
+The Windows project targets the Visual Studio 2022 `v143` toolset.
+
+Build from Visual Studio:
+
+* Open `Windows/NexPad.sln`
+
+Build from the command line with MSBuild:
 
 ```powershell
 & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe' .\Windows\NexPad.sln /p:Configuration=Release /p:Platform=Win32
 & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe' .\Windows\NexPad.sln /p:Configuration=Release /p:Platform=x64
 ```
 
-Build Output Layout
-======
-Release and Debug builds mirror the runtime layout from the repository root instead of writing final binaries into `Windows/Release` and `Windows/x64/Release`.
-
-Release outputs:
+Build output layout:
 
 ```text
-NexPad.exe
-config.ini
-presets/
-x64/
+Debug/
   NexPad.exe
   config.ini
   presets/
+
+x64/
+  Debug/
+    NexPad.exe
+    config.ini
+    presets/
+
 release/
   NexPad.exe
   config.ini
@@ -190,31 +191,35 @@ release/
     presets/
 ```
 
-Debug outputs:
+Intermediate objects, PDBs, libs, and tlogs are written under `Windows/.build/`.
 
-```text
-Debug/
-  NexPad.exe
-  config.ini
-  presets/
-x64/
-  Debug/
-    NexPad.exe
-    config.ini
-    presets/
+GitHub Publishing
+======
+
+This repository is ready for a GitHub remote, but no remote is configured yet.
+
+Typical publish flow:
+
+1. Create a new empty GitHub repository named `NexPad`.
+2. Add the remote:
+
+```powershell
+git remote add origin https://github.com/<owner>/NexPad.git
 ```
 
-Intermediate objects, PDBs, libs, and tlogs are written under `Windows/.build/`.
+3. Push the current branch:
+
+```powershell
+git push -u origin main
+```
+
+4. Create your first GitHub release once you are ready to publish packaged binaries.
 
 License
 ======
+
 NexPad is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
-
-
-
-
-![Controller GIF](https://thumbs.gfycat.com/ElasticUnrulyBighorn-max-1mb.gif)
+You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
