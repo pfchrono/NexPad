@@ -1452,6 +1452,22 @@ namespace
     return stream.str();
   }
 
+  std::string buildLogTimestamp()
+  {
+    SYSTEMTIME localTime = {};
+    GetLocalTime(&localTime);
+
+    std::ostringstream stream;
+    stream << '['
+           << std::setfill('0') << std::setw(2) << localTime.wHour
+           << ':'
+           << std::setfill('0') << std::setw(2) << localTime.wMinute
+           << ':'
+           << std::setfill('0') << std::setw(2) << localTime.wSecond
+           << "] ";
+    return stream.str();
+  }
+
   void ensureTrayIcon(HWND window)
   {
     GuiState* state = getGuiState(window);
@@ -1525,7 +1541,7 @@ namespace
       return;
     }
 
-    const std::string entry = message + "\r\n";
+    const std::string entry = buildLogTimestamp() + message + "\r\n";
     const int length = GetWindowTextLengthA(state->outputInfo);
     SendMessageA(state->outputInfo, EM_SETSEL, length, length);
     SendMessageA(state->outputInfo, EM_REPLACESEL, FALSE, reinterpret_cast<LPARAM>(entry.c_str()));
