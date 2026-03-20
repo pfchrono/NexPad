@@ -169,6 +169,13 @@ Build from the command line with MSBuild:
 & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe' .\Windows\NexPad.sln /p:Configuration=Release /p:Platform=x64
 ```
 
+Helper scripts:
+
+* `scripts\build-all.bat` builds the full `Debug/Release x Win32/x64` matrix
+* `scripts\build-all.bat clean` cleans each target before building
+* `scripts\build-all.ps1` does the same from PowerShell
+* `scripts\build-all.ps1 -Clean` cleans before building
+
 Build output layout:
 
 ```text

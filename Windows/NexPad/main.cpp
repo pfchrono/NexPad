@@ -172,6 +172,18 @@ namespace
   void applyControlTheme(HWND control);
   std::string getComboItemText(HWND comboBox, UINT itemId);
 
+  bool isEditControl(HWND control)
+  {
+    if (control == NULL)
+    {
+      return false;
+    }
+
+    char className[16] = {};
+    const int length = GetClassNameA(control, className, static_cast<int>(sizeof(className)));
+    return length > 0 && _stricmp(className, "Edit") == 0;
+  }
+
   std::string getPresetDirectory()
   {
     return "presets";
@@ -306,6 +318,15 @@ namespace
       if (state)
       {
         HDC dc = reinterpret_cast<HDC>(wParam);
+
+        if (isEditControl(reinterpret_cast<HWND>(lParam)))
+        {
+          SetBkMode(dc, OPAQUE);
+          SetTextColor(dc, state->textColor);
+          SetBkColor(dc, state->editBackgroundColor);
+          return reinterpret_cast<LRESULT>(state->editBrush);
+        }
+
         SetBkMode(dc, TRANSPARENT);
         SetTextColor(dc, state->textColor);
         SetBkColor(dc, state->panelColor);
@@ -2464,6 +2485,15 @@ namespace
       if (state)
       {
         HDC dc = reinterpret_cast<HDC>(wParam);
+
+        if (isEditControl(reinterpret_cast<HWND>(lParam)))
+        {
+          SetBkMode(dc, OPAQUE);
+          SetTextColor(dc, state->textColor);
+          SetBkColor(dc, state->editBackgroundColor);
+          return reinterpret_cast<LRESULT>(state->editBrush);
+        }
+
         SetBkMode(dc, TRANSPARENT);
         SetTextColor(dc, state->textColor);
         SetBkColor(dc, state->panelColor);
