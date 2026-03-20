@@ -166,6 +166,10 @@ public:
 
   float getScrollSpeed() const;
 
+  int getTouchpadEnabled() const;
+
+  float getTouchpadSpeed() const;
+
   int getLoopIntervalMs() const;
 
   const std::vector<float>& getSpeeds() const;
@@ -177,6 +181,10 @@ public:
   void setSpeedIndex(unsigned int index);
 
   void setScrollSpeed(float value);
+
+  void setTouchpadEnabled(int value);
+
+  void setTouchpadSpeed(float value);
 
   int getSwapThumbsticks() const;
 

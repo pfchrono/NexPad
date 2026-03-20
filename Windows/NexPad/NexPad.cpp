@@ -230,6 +230,16 @@ float NexPad::getScrollSpeed() const
   return SCROLL_SPEED;
 }
 
+int NexPad::getTouchpadEnabled() const
+{
+  return TOUCHPAD_ENABLED;
+}
+
+float NexPad::getTouchpadSpeed() const
+{
+  return TOUCHPAD_SPEED;
+}
+
 int NexPad::getLoopIntervalMs() const
 {
   return SLEEP_AMOUNT;
@@ -282,6 +292,24 @@ void NexPad::setScrollSpeed(float value)
     std::ostringstream scrollMessage;
     scrollMessage << "Applied scroll speed " << SCROLL_SPEED;
     notifyStatus(scrollMessage.str());
+  }
+}
+
+void NexPad::setTouchpadEnabled(int value)
+{
+  TOUCHPAD_ENABLED = value ? 1 : 0;
+  notifyStatus(std::string("DualSense touchpad cursor ") + (TOUCHPAD_ENABLED ? "Enabled" : "Disabled"));
+}
+
+void NexPad::setTouchpadSpeed(float value)
+{
+  if (value > 0.0f)
+  {
+    TOUCHPAD_SPEED = value;
+
+    std::ostringstream touchpadMessage;
+    touchpadMessage << "Applied touchpad speed " << TOUCHPAD_SPEED;
+    notifyStatus(touchpadMessage.str());
   }
 }
 
@@ -370,7 +398,7 @@ void NexPad::loadConfigFile()
     SCROLL_SPEED = 0.1f;
   }
 
-  TOUCHPAD_ENABLED = strtol(cfg.getValueOfKey<std::string>("TOUCHPAD_ENABLED", "0").c_str(), 0, 0) != 0 ? 1 : 0;
+  TOUCHPAD_ENABLED = strtol(cfg.getValueOfKey<std::string>("TOUCHPAD_ENABLED", "1").c_str(), 0, 0) != 0 ? 1 : 0;
 
   TOUCHPAD_DEAD_ZONE = strtol(cfg.getValueOfKey<std::string>("TOUCHPAD_DEAD_ZONE", "2").c_str(), 0, 0);
   if (TOUCHPAD_DEAD_ZONE < 0)

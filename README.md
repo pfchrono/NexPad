@@ -41,7 +41,7 @@ Features
 ======
 
 * Desktop cursor control from a controller
-* Optional DualSense touchpad cursor control through the native HID fallback path
+* DualSense touchpad cursor control through the native HID fallback path
 * Scroll wheel emulation
 * Mouse click mapping
 * Keyboard mapping for controller buttons and triggers
@@ -116,7 +116,7 @@ PlayStation controllers
 
 * PlayStation controllers may require XInput emulation tools in some setups
 * The current codebase also includes native HID fallback logic for supported PlayStation devices
-* DualSense touchpad cursor movement can be enabled through config for native HID-connected DualSense controllers
+* DualSense touchpad cursor movement is enabled by default for native HID-connected DualSense controllers and can be adjusted from the Settings tab or config
 
 Third-party controllers
 
@@ -148,7 +148,8 @@ Current scope:
 * DualSense only
 * movement only
 * additive to the existing stick mouse control
-* controlled by `config.ini`
+* enabled by default in the shipped config
+* adjustable from the Settings tab or `config.ini`
 
 Example config:
 

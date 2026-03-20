@@ -60,6 +60,8 @@ namespace
     IDC_OUTPUT_INFO,
     IDC_SPEED_COMBO,
     IDC_SCROLL_EDIT,
+    IDC_TOUCHPAD_SPEED_EDIT,
+    IDC_TOUCHPAD_CHECK,
     IDC_SWAP_CHECK,
     IDC_PRESET_LIST,
     IDC_PRESET_NAME_EDIT,
@@ -110,6 +112,8 @@ namespace
     HWND outputInfo = NULL;
     HWND speedCombo = NULL;
     HWND scrollEdit = NULL;
+    HWND touchpadSpeedEdit = NULL;
+    HWND touchpadCheck = NULL;
     HWND swapCheck = NULL;
     HWND presetList = NULL;
     HWND presetNameEdit = NULL;
@@ -129,6 +133,7 @@ namespace
     HWND settingsNote = NULL;
     HWND speedLabel = NULL;
     HWND scrollLabel = NULL;
+    HWND touchpadSpeedLabel = NULL;
     HWND presetListLabel = NULL;
     HWND presetNameLabel = NULL;
     HFONT font = NULL;
@@ -1633,6 +1638,11 @@ namespace
     scrollSpeed << std::fixed << std::setprecision(3) << state->nexPad.getScrollSpeed();
     SetWindowTextA(state->scrollEdit, scrollSpeed.str().c_str());
 
+    std::ostringstream touchpadSpeed;
+    touchpadSpeed << std::fixed << std::setprecision(3) << state->nexPad.getTouchpadSpeed();
+    SetWindowTextA(state->touchpadSpeedEdit, touchpadSpeed.str().c_str());
+
+    SendMessage(state->touchpadCheck, BM_SETCHECK, state->nexPad.getTouchpadEnabled() ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessage(state->swapCheck, BM_SETCHECK, state->nexPad.getSwapThumbsticks() ? BST_CHECKED : BST_UNCHECKED, 0);
   }
 
@@ -1798,21 +1808,25 @@ namespace
     MoveWindow(state->scrollLabel, margin, margin + 56, 160, labelHeight, TRUE);
     MoveWindow(state->scrollEdit, margin, margin + 76, 120, 24, TRUE);
     applyEditPadding(state->scrollEdit, 6, 0);
-    MoveWindow(state->swapCheck, margin, margin + 112, pageWidth - margin * 2, 24, TRUE);
-    MoveWindow(state->applyButton, margin, margin + 152, 130, 28, TRUE);
-    MoveWindow(state->saveButton, margin + 142, margin + 152, 130, 28, TRUE);
-    MoveWindow(state->reloadButton, margin + 284, margin + 152, 130, 28, TRUE);
-    MoveWindow(state->presetListLabel, margin, margin + 206, 160, labelHeight, TRUE);
-    MoveWindow(state->presetList, margin, margin + 226, 260, 220, TRUE);
-    MoveWindow(state->presetNameLabel, margin + 272, margin + 206, 160, labelHeight, TRUE);
-    MoveWindow(state->presetNameEdit, margin + 272, margin + 226, 220, 24, TRUE);
+    MoveWindow(state->touchpadSpeedLabel, margin, margin + 112, 160, labelHeight, TRUE);
+    MoveWindow(state->touchpadSpeedEdit, margin, margin + 132, 120, 24, TRUE);
+    applyEditPadding(state->touchpadSpeedEdit, 6, 0);
+    MoveWindow(state->touchpadCheck, margin, margin + 168, pageWidth - margin * 2, 24, TRUE);
+    MoveWindow(state->swapCheck, margin, margin + 200, pageWidth - margin * 2, 24, TRUE);
+    MoveWindow(state->applyButton, margin, margin + 240, 130, 28, TRUE);
+    MoveWindow(state->saveButton, margin + 142, margin + 240, 130, 28, TRUE);
+    MoveWindow(state->reloadButton, margin + 284, margin + 240, 130, 28, TRUE);
+    MoveWindow(state->presetListLabel, margin, margin + 294, 160, labelHeight, TRUE);
+    MoveWindow(state->presetList, margin, margin + 314, 260, 220, TRUE);
+    MoveWindow(state->presetNameLabel, margin + 272, margin + 294, 160, labelHeight, TRUE);
+    MoveWindow(state->presetNameEdit, margin + 272, margin + 314, 220, 24, TRUE);
     applyEditPadding(state->presetNameEdit, 6, 0);
-    MoveWindow(state->presetSaveButton, margin + 504, margin + 224, 110, 28, TRUE);
-    MoveWindow(state->presetRefreshButton, margin + 272, margin + 260, 110, 28, TRUE);
-    MoveWindow(state->presetDeleteButton, margin + 394, margin + 260, 110, 28, TRUE);
-    MoveWindow(state->importButton, margin + 272, margin + 294, 110, 28, TRUE);
-    MoveWindow(state->exportButton, margin + 394, margin + 294, 110, 28, TRUE);
-    MoveWindow(state->settingsNote, margin, margin + 340, pageWidth - margin * 2, 36, TRUE);
+    MoveWindow(state->presetSaveButton, margin + 504, margin + 312, 110, 28, TRUE);
+    MoveWindow(state->presetRefreshButton, margin + 272, margin + 348, 110, 28, TRUE);
+    MoveWindow(state->presetDeleteButton, margin + 394, margin + 348, 110, 28, TRUE);
+    MoveWindow(state->importButton, margin + 272, margin + 382, 110, 28, TRUE);
+    MoveWindow(state->exportButton, margin + 394, margin + 382, 110, 28, TRUE);
+    MoveWindow(state->settingsNote, margin, margin + 428, pageWidth - margin * 2, 36, TRUE);
 
     MoveWindow(state->mappingsHelp, margin, margin, helpWidth, pageHeight - margin * 2, TRUE);
     applyEditPadding(state->mappingsHelp);
@@ -1851,6 +1865,15 @@ namespace
       state->nexPad.setScrollSpeed(scrollSpeed);
     }
 
+    char touchpadBuffer[64] = {};
+    GetWindowTextA(state->touchpadSpeedEdit, touchpadBuffer, static_cast<int>(sizeof(touchpadBuffer)));
+    const float touchpadSpeed = static_cast<float>(atof(touchpadBuffer));
+    if (touchpadSpeed > 0.0f)
+    {
+      state->nexPad.setTouchpadSpeed(touchpadSpeed);
+    }
+
+    state->nexPad.setTouchpadEnabled(SendMessage(state->touchpadCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     state->nexPad.setSwapThumbsticks(SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     state->nexPad.saveConfigFile();
     updateStatusControls(window);
@@ -2159,6 +2182,12 @@ namespace
                  12, 68, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
         state->scrollEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
                                             0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SCROLL_EDIT), createStruct->hInstance, NULL);
+        state->touchpadSpeedLabel = CreateWindowExA(0, "STATIC", "Touchpad speed", WS_CHILD | WS_VISIBLE,
+           12, 104, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
+        state->touchpadSpeedEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
+                     0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_SPEED_EDIT), createStruct->hInstance, NULL);
+        state->touchpadCheck = CreateWindowExA(0, "BUTTON", "Enable DualSense touchpad", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                       0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_CHECK), createStruct->hInstance, NULL);
         state->swapCheck = CreateWindowExA(0, "BUTTON", "Swap thumbsticks", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
                                           0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SWAP_CHECK), createStruct->hInstance, NULL);
         state->presetListLabel = CreateWindowExA(0, "STATIC", "Preset list", WS_CHILD | WS_VISIBLE,
@@ -2211,8 +2240,8 @@ namespace
         setControlFont(state->font,
                        { state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText,
                          state->toggleButton,
-                          state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit,
-                           state->swapCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
+                          state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit, state->touchpadSpeedLabel, state->touchpadSpeedEdit,
+                           state->touchpadCheck, state->swapCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
                            state->applyButton, state->saveButton, state->reloadButton, state->importButton, state->exportButton, state->settingsNote,
                            state->mappingsHelp, state->mappingKeyCombo, state->mappingValueCombo, state->mappingDescription, state->applyMappingButton });
 
@@ -2228,6 +2257,7 @@ namespace
         applyNativeTabPalette(state->tab, state);
         applyControlTheme(state->toggleButton);
         applyControlTheme(state->speedCombo);
+        applyControlTheme(state->touchpadCheck);
         applyControlTheme(state->swapCheck);
         applyControlTheme(state->applyButton);
         applyControlTheme(state->saveButton);
@@ -2244,10 +2274,12 @@ namespace
         applyControlTheme(state->startupInfo);
         applyControlTheme(state->outputInfo);
         applyControlTheme(state->scrollEdit);
+        applyControlTheme(state->touchpadSpeedEdit);
         applyControlTheme(state->presetNameEdit);
         applyControlTheme(state->mappingsHelp);
 
         SetWindowSubclass(state->toggleButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+        SetWindowSubclass(state->touchpadCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
         SetWindowSubclass(state->swapCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
         SetWindowSubclass(state->applyButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
         SetWindowSubclass(state->saveButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
@@ -2368,6 +2400,15 @@ namespace
           const LRESULT checked = SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
           SendMessage(state->swapCheck, BM_SETCHECK, checked, 0);
           InvalidateRect(state->swapCheck, NULL, TRUE);
+        }
+        return 0;
+
+      case IDC_TOUCHPAD_CHECK:
+        if (HIWORD(wParam) == BN_CLICKED)
+        {
+          const LRESULT checked = SendMessage(state->touchpadCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
+          SendMessage(state->touchpadCheck, BM_SETCHECK, checked, 0);
+          InvalidateRect(state->touchpadCheck, NULL, TRUE);
         }
         return 0;
 
