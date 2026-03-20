@@ -370,6 +370,20 @@ void NexPad::loadConfigFile()
     SCROLL_SPEED = 0.1f;
   }
 
+  TOUCHPAD_ENABLED = strtol(cfg.getValueOfKey<std::string>("TOUCHPAD_ENABLED", "0").c_str(), 0, 0) != 0 ? 1 : 0;
+
+  TOUCHPAD_DEAD_ZONE = strtol(cfg.getValueOfKey<std::string>("TOUCHPAD_DEAD_ZONE", "2").c_str(), 0, 0);
+  if (TOUCHPAD_DEAD_ZONE < 0)
+  {
+    TOUCHPAD_DEAD_ZONE = 0;
+  }
+
+  TOUCHPAD_SPEED = strtof(cfg.getValueOfKey<std::string>("TOUCHPAD_SPEED", "1.200").c_str(), 0);
+  if (TOUCHPAD_SPEED < 0.00001f)
+  {
+    TOUCHPAD_SPEED = 1.2f;
+  }
+
   unsigned int configuredSpeedIndex = static_cast<unsigned int>(strtoul(cfg.getValueOfKey<std::string>("CURRENT_SPEED_INDEX", "0").c_str(), 0, 0));
 
   // Variable cursor speeds
@@ -543,6 +557,11 @@ bool NexPad::saveConfigFile()
   updateConfigLine(lines, "CURRENT_SPEED_INDEX", std::to_string(speed_idx));
   updateConfigLine(lines, "SCROLL_SPEED", scrollValue.str());
   updateConfigLine(lines, "SWAP_THUMBSTICKS", std::to_string(SWAP_THUMBSTICKS));
+  updateConfigLine(lines, "TOUCHPAD_ENABLED", std::to_string(TOUCHPAD_ENABLED));
+  updateConfigLine(lines, "TOUCHPAD_DEAD_ZONE", std::to_string(TOUCHPAD_DEAD_ZONE));
+  std::ostringstream touchpadSpeedValue;
+  touchpadSpeedValue << std::fixed << std::setprecision(3) << TOUCHPAD_SPEED;
+  updateConfigLine(lines, "TOUCHPAD_SPEED", touchpadSpeedValue.str());
   updateConfigLine(lines, "CONFIG_MOUSE_LEFT", formatHexValue(CONFIG_MOUSE_LEFT));
   updateConfigLine(lines, "CONFIG_MOUSE_RIGHT", formatHexValue(CONFIG_MOUSE_RIGHT));
   updateConfigLine(lines, "CONFIG_MOUSE_MIDDLE", formatHexValue(CONFIG_MOUSE_MIDDLE));
@@ -663,8 +682,11 @@ std::string NexPad::getProfileText() const
   stream << "# NexPad preset profile\r\n";
   stream << "CURRENT_SPEED_INDEX = " << speed_idx << "\r\n";
   stream << std::fixed << std::setprecision(3)
-         << "SCROLL_SPEED = " << SCROLL_SPEED << "\r\n";
-  stream << "SWAP_THUMBSTICKS = " << SWAP_THUMBSTICKS << "\r\n\r\n";
+         << "SCROLL_SPEED = " << SCROLL_SPEED << "\r\n"
+         << "TOUCHPAD_SPEED = " << TOUCHPAD_SPEED << "\r\n";
+  stream << "SWAP_THUMBSTICKS = " << SWAP_THUMBSTICKS << "\r\n";
+  stream << "TOUCHPAD_ENABLED = " << TOUCHPAD_ENABLED << "\r\n";
+  stream << "TOUCHPAD_DEAD_ZONE = " << TOUCHPAD_DEAD_ZONE << "\r\n\r\n";
   stream << getMappingsText();
   return stream.str();
 }
@@ -691,6 +713,26 @@ bool NexPad::applyProfileText(const std::string& profileText)
   if (tryParseConfigValue(profileText, "SWAP_THUMBSTICKS", parsedInteger))
   {
     setSwapThumbsticks(parsedInteger == 0 ? 0 : 1);
+  }
+
+  if (tryParseConfigValue(profileText, "TOUCHPAD_ENABLED", parsedInteger))
+  {
+    TOUCHPAD_ENABLED = parsedInteger == 0 ? 0 : 1;
+  }
+
+  if (tryParseConfigValue(profileText, "TOUCHPAD_DEAD_ZONE", parsedInteger))
+  {
+    TOUCHPAD_DEAD_ZONE = static_cast<int>(parsedInteger);
+    if (TOUCHPAD_DEAD_ZONE < 0)
+    {
+      TOUCHPAD_DEAD_ZONE = 0;
+    }
+  }
+
+  float parsedTouchpadSpeed = 0.0f;
+  if (tryParseFloatConfigValue(profileText, "TOUCHPAD_SPEED", parsedTouchpadSpeed) && parsedTouchpadSpeed > 0.0f)
+  {
+    TOUCHPAD_SPEED = parsedTouchpadSpeed;
   }
 
   notifyStatus("Imported preset profile");
@@ -1021,6 +1063,30 @@ float NexPad::getMult(float magnitude, float deadzone, float accel = 0.0f)
   return mult / FPS;
 }
 
+void NexPad::handleTouchpadMovement(float& dx, float& dy)
+{
+  if (TOUCHPAD_ENABLED == 0)
+  {
+    return;
+  }
+
+  const CXBOXController::TouchpadState touchpad = _controller->GetTouchpadState();
+  if (!touchpad.available || !touchpad.active)
+  {
+    return;
+  }
+
+  const int magnitudeX = std::abs(static_cast<int>(touchpad.deltaX));
+  const int magnitudeY = std::abs(static_cast<int>(touchpad.deltaY));
+  if (magnitudeX <= TOUCHPAD_DEAD_ZONE && magnitudeY <= TOUCHPAD_DEAD_ZONE)
+  {
+    return;
+  }
+
+  dx += static_cast<float>(touchpad.deltaX) * TOUCHPAD_SPEED;
+  dy -= static_cast<float>(touchpad.deltaY) * TOUCHPAD_SPEED;
+}
+
 // Description:
 //   Controls the mouse cursor movement by reading the left thumbstick.
 void NexPad::handleMouseMovement()
@@ -1060,6 +1126,8 @@ void NexPad::handleMouseMovement()
       dx = tx * mult;
       dy = ty * mult;
   }
+
+  handleTouchpadMovement(dx, dy);
 
   x += dx;
   _xRest = x - (float)((int)x);

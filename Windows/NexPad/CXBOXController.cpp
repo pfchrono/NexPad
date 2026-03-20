@@ -28,6 +28,18 @@ namespace
 
   struct DualSenseState
   {
+    struct TouchpadFrame
+    {
+      bool available = false;
+      bool active = false;
+      unsigned short x = 0;
+      unsigned short y = 0;
+      unsigned short previousX = 0;
+      unsigned short previousY = 0;
+      short deltaX = 0;
+      short deltaY = 0;
+    };
+
     HANDLE deviceHandle = INVALID_HANDLE_VALUE;
     HANDLE readEvent = NULL;
     OVERLAPPED overlapped = {};
@@ -40,6 +52,7 @@ namespace
     std::vector<BYTE> inputBuffer;
     XINPUT_STATE cachedState = {};
     PSControllerType controllerType = PSControllerType::DualSense;
+    TouchpadFrame touchpad = {};
   };
 
   DualSenseState g_dualSenseState;
@@ -137,7 +150,82 @@ namespace
     g_dualSenseState.hasCachedState = false;
     g_dualSenseState.inputBuffer.clear();
     ZeroMemory(&g_dualSenseState.cachedState, sizeof(g_dualSenseState.cachedState));
+    g_dualSenseState.touchpad = {};
     g_playStationBatteryStatus = "Battery: Disconnected";
+  }
+
+  void resetTouchpadFrame()
+  {
+    g_dualSenseState.touchpad.active = false;
+    g_dualSenseState.touchpad.available = false;
+    g_dualSenseState.touchpad.deltaX = 0;
+    g_dualSenseState.touchpad.deltaY = 0;
+    g_dualSenseState.touchpad.x = 0;
+    g_dualSenseState.touchpad.y = 0;
+    g_dualSenseState.touchpad.previousX = 0;
+    g_dualSenseState.touchpad.previousY = 0;
+  }
+
+  void clearTouchpadDeltas()
+  {
+    g_dualSenseState.touchpad.deltaX = 0;
+    g_dualSenseState.touchpad.deltaY = 0;
+  }
+
+  void updateDualSenseTouchpadState(const std::vector<BYTE>& report, const size_t baseOffset)
+  {
+    clearTouchpadDeltas();
+
+    if (g_dualSenseState.controllerType != PSControllerType::DualSense)
+    {
+      g_dualSenseState.touchpad.available = false;
+      g_dualSenseState.touchpad.active = false;
+      return;
+    }
+
+    const size_t touchOffset = baseOffset + 32;
+    if (report.size() <= touchOffset + 3)
+    {
+      g_dualSenseState.touchpad.available = false;
+      g_dualSenseState.touchpad.active = false;
+      return;
+    }
+
+    g_dualSenseState.touchpad.available = true;
+
+    // TouchData starts at byte 32 of the DualSense state payload.
+    // The first finger uses 4 bytes: id/inactive flag, x low, x high|y low, y high.
+    const BYTE fingerState = report[touchOffset + 0];
+    const bool active = (fingerState & 0x80) == 0;
+    if (!active)
+    {
+      g_dualSenseState.touchpad.active = false;
+      g_dualSenseState.touchpad.x = 0;
+      g_dualSenseState.touchpad.y = 0;
+      g_dualSenseState.touchpad.previousX = 0;
+      g_dualSenseState.touchpad.previousY = 0;
+      return;
+    }
+
+    const unsigned short touchX = static_cast<unsigned short>(report[touchOffset + 1] | ((report[touchOffset + 2] & 0x0F) << 8));
+    const unsigned short touchY = static_cast<unsigned short>(((report[touchOffset + 2] >> 4) & 0x0F) | (report[touchOffset + 3] << 4));
+
+    if (!g_dualSenseState.touchpad.active)
+    {
+      g_dualSenseState.touchpad.previousX = touchX;
+      g_dualSenseState.touchpad.previousY = touchY;
+    }
+    else
+    {
+      g_dualSenseState.touchpad.deltaX = static_cast<short>(static_cast<int>(touchX) - static_cast<int>(g_dualSenseState.touchpad.previousX));
+      g_dualSenseState.touchpad.deltaY = static_cast<short>(static_cast<int>(touchY) - static_cast<int>(g_dualSenseState.touchpad.previousY));
+      g_dualSenseState.touchpad.previousX = touchX;
+      g_dualSenseState.touchpad.previousY = touchY;
+    }
+
+    g_dualSenseState.touchpad.active = true;
+    g_dualSenseState.touchpad.x = touchX;
+    g_dualSenseState.touchpad.y = touchY;
   }
 
   void initializeXInput()
@@ -546,6 +634,7 @@ namespace
     }
 
     updateDualSenseBatteryStatus(report, baseOffset);
+    updateDualSenseTouchpadState(report, baseOffset);
 
     const BYTE lx = report[baseOffset + 0];
     const BYTE ly = report[baseOffset + 1];
@@ -615,6 +704,7 @@ namespace
     }
 
     updateDualShock4BatteryStatus(report, baseOffset);
+    resetTouchpadFrame();
 
     const BYTE lx       = report[baseOffset + 0];
     const BYTE ly       = report[baseOffset + 1];
@@ -662,13 +752,15 @@ namespace
 
     if (!ensureDualSenseConnected())
     {
+      resetTouchpadFrame();
       return false;
     }
 
     const bool isDualShock4 = (g_dualSenseState.controllerType == PSControllerType::DualShock4);
 
     std::vector<BYTE> report;
-    if (tryReadPlayStationInputReport(report))
+    const bool hasFreshReport = tryReadPlayStationInputReport(report);
+    if (hasFreshReport)
     {
       XINPUT_STATE parsedState;
       ZeroMemory(&parsedState, sizeof(parsedState));
@@ -683,6 +775,10 @@ namespace
 
       g_dualSenseState.cachedState = parsedState;
       g_dualSenseState.hasCachedState = true;
+    }
+    else if (!isDualShock4)
+    {
+      clearTouchpadDeltas();
     }
 
     if (g_dualSenseState.hasCachedState)
@@ -710,6 +806,7 @@ XINPUT_STATE CXBOXController::GetState()
     _isConnected = true;
     _controllerType = "XInput Controller";
     _batteryStatus = describeXInputBattery(controllerIndex);
+    resetTouchpadFrame();
     return _controllerState;
   }
 
@@ -726,6 +823,7 @@ XINPUT_STATE CXBOXController::GetState()
     _isConnected = false;
     _controllerType = "Disconnected";
     _batteryStatus = "Battery: Disconnected";
+    resetTouchpadFrame();
   }
 
   return _controllerState;
@@ -740,6 +838,7 @@ bool CXBOXController::IsConnected()
     _isConnected = true;
     _controllerType = "XInput Controller";
     _batteryStatus = describeXInputBattery(controllerIndex);
+    resetTouchpadFrame();
     return true;
   }
 
@@ -748,6 +847,10 @@ bool CXBOXController::IsConnected()
     ? (g_dualSenseState.controllerType == PSControllerType::DualShock4 ? "DualShock 4 (HID)" : "DualSense (HID)")
     : "Disconnected";
   _batteryStatus = _isConnected ? g_playStationBatteryStatus : "Battery: Disconnected";
+  if (!_isConnected)
+  {
+    resetTouchpadFrame();
+  }
   return _isConnected;
 }
 
@@ -780,4 +883,14 @@ const std::string& CXBOXController::GetControllerTypeName() const
 const std::string& CXBOXController::GetBatteryStatus() const
 {
   return _batteryStatus;
+}
+
+CXBOXController::TouchpadState CXBOXController::GetTouchpadState() const
+{
+  TouchpadState state = {};
+  state.available = g_dualSenseState.controllerType == PSControllerType::DualSense && g_dualSenseState.touchpad.available;
+  state.active = state.available && g_dualSenseState.touchpad.active;
+  state.deltaX = state.available ? g_dualSenseState.touchpad.deltaX : 0;
+  state.deltaY = state.available ? g_dualSenseState.touchpad.deltaY : 0;
+  return state;
 }

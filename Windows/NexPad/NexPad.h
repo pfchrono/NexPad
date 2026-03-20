@@ -33,6 +33,9 @@ private:
   int SCROLL_DEAD_ZONE = 5000;          // Thumbstick dead zone to use for scroll wheel movement. Absolute maximum shall be 65534.
   int TRIGGER_DEAD_ZONE = 0;            // Dead zone for the left and right triggers to detect a trigger press. 0 means that any press to trigger will be read as a button press.
   float SCROLL_SPEED = 0.1f;             // Speed at which you scroll.
+  int TOUCHPAD_ENABLED = 0;             // Enables DualSense touchpad cursor control when non-zero.
+  int TOUCHPAD_DEAD_ZONE = 2;           // Minimum per-frame touchpad motion before cursor movement is applied.
+  float TOUCHPAD_SPEED = 1.2f;          // Multiplier for DualSense touchpad cursor movement.
   const int FPS = 150;                  // Update rate of the main NexPad loop. Interpreted as cycles-per-second.
   const int SLEEP_AMOUNT = 1000 / FPS;  // Number of milliseconds to sleep per iteration.
   int SWAP_THUMBSTICKS = 0;             // Swaps the function of the thumbsticks when not equal to 0.
@@ -126,6 +129,8 @@ public:
   float getMult(float length, float deadzone, float accel);
 
   void handleMouseMovement();
+
+  void handleTouchpadMovement(float& dx, float& dy);
 
   void handleDisableButton();
 

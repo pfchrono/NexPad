@@ -7,6 +7,15 @@
 
 class CXBOXController
 {
+public:
+  struct TouchpadState
+  {
+    bool active = false;
+    bool available = false;
+    short deltaX = 0;
+    short deltaY = 0;
+  };
+
 private:
   XINPUT_STATE _controllerState;
   int _controllerNum;
@@ -21,4 +30,5 @@ public:
   bool GetLastConnectionState() const;
   const std::string& GetControllerTypeName() const;
   const std::string& GetBatteryStatus() const;
+  TouchpadState GetTouchpadState() const;
 };

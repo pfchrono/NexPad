@@ -19,6 +19,7 @@ Table of contents
   * [Default Controls](#default-controls)
   * [Controller Support](#controller-support)
   * [Configuration](#configuration)
+  * [DualSense Touchpad Support](#dualsense-touchpad-support)
   * [Screenshots](#screenshots)
   * [Build From Source](#build-from-source)
   * [GitHub Publishing](#github-publishing)
@@ -40,6 +41,7 @@ Features
 ======
 
 * Desktop cursor control from a controller
+* Optional DualSense touchpad cursor control through the native HID fallback path
 * Scroll wheel emulation
 * Mouse click mapping
 * Keyboard mapping for controller buttons and triggers
@@ -114,6 +116,7 @@ PlayStation controllers
 
 * PlayStation controllers may require XInput emulation tools in some setups
 * The current codebase also includes native HID fallback logic for supported PlayStation devices
+* DualSense touchpad cursor movement can be enabled through config for native HID-connected DualSense controllers
 
 Third-party controllers
 
@@ -133,6 +136,27 @@ Important config groups:
 * `GAMEPAD_*`: keyboard mappings for controller buttons
 * `ON_ENABLE` and `ON_DISABLE`: optional key events when mapping is toggled
 * `CURSOR_SPEED`, `SCROLL_SPEED`, `SWAP_THUMBSTICKS`, and dead-zone values: movement behavior
+* `TOUCHPAD_ENABLED`, `TOUCHPAD_DEAD_ZONE`, and `TOUCHPAD_SPEED`: DualSense touchpad mouse input behavior
+
+DualSense touchpad support
+======
+
+NexPad can use the DualSense touchpad as an additional mouse input source when the controller is connected through the native HID fallback path.
+
+Current scope:
+
+* DualSense only
+* movement only
+* additive to the existing stick mouse control
+* controlled by `config.ini`
+
+Example config:
+
+```ini
+TOUCHPAD_ENABLED = 1
+TOUCHPAD_DEAD_ZONE = 2
+TOUCHPAD_SPEED = 1.200
+```
 
 Reference links:
 

@@ -149,6 +149,9 @@ void ConfigFile::ExtractKeys()
     outfile << "TRIGGER_DEAD_ZONE = 0 # Dead zone for the left and right triggers to detect a trigger press. Range from 0 (accept all input) to 255 (ignore all input)." << std::endl;
     outfile << "CURRENT_SPEED_INDEX = 0 # Selected speed preset index saved by the GUI" << std::endl;
     outfile << "SCROLL_SPEED = 0.125 # Speed at which you scroll (scalar)" << std::endl;
+    outfile << "TOUCHPAD_ENABLED = 0 # Enable DualSense touchpad cursor control (0 = disabled, 1 = enabled)." << std::endl;
+    outfile << "TOUCHPAD_DEAD_ZONE = 2 # Minimum per-frame touchpad movement before cursor motion is applied." << std::endl;
+    outfile << "TOUCHPAD_SPEED = 1.200 # Sensitivity multiplier for DualSense touchpad cursor movement." << std::endl;
     outfile << "INIT_DISABLED = 0 # Start NexPad Disabled (1 for disabled, 0 for enabled)" << std::endl;
 
     // End config dump
