@@ -193,10 +193,28 @@ release/
 
 Intermediate objects, PDBs, libs, and tlogs are written under `Windows/.build/`.
 
+Release Packaging
+======
+
+To build and package release artifacts locally:
+
+```powershell
+.\scripts\package-release.ps1 -Version v0.1.0
+```
+
+This generates zipped Win32 and x64 release artifacts under `artifacts/` using the same `release/` layout produced by the Visual Studio project.
+
 GitHub Publishing
 ======
 
 This repository is ready for a GitHub remote, but no remote is configured yet.
+
+Continuous integration is defined in `.github/workflows/build.yml` and will:
+
+* build on pushes to `main`
+* build on version tags matching `v*`
+* run manually through `workflow_dispatch`
+* upload packaged release zip files as workflow artifacts
 
 Typical publish flow:
 
@@ -214,6 +232,8 @@ git push -u origin main
 ```
 
 4. Create your first GitHub release once you are ready to publish packaged binaries.
+
+For a manual release process, see `RELEASE_CHECKLIST.md`.
 
 License
 ======

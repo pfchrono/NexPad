@@ -1,0 +1,41 @@
+name: Build NexPad
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Set version label
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          if ("${{ github.ref_type }}" -ne "tag") {
+            $version = "${{ github.sha }}".Substring(0, 7)
+          }
+          "VERSION_LABEL=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build and package release artifacts
+        shell: pwsh
+        run: |
+          .\scripts\package-release.ps1 -Version $env:VERSION_LABEL
+
+      - name: Upload packaged artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NexPad-${{ env.VERSION_LABEL }}
+          path: |
+            artifacts/*.zip
