@@ -59,6 +59,7 @@ private:
   bool _disabled = false;           // Disables the NexPad controller mapping.
   bool _vibrationDisabled = false;  // Prevents NexPad from producing controller vibrations. 
   bool _hidden = false;             // NexPad main window visibility.
+  bool _controllerWasConnected = false;
   bool _lTriggerPrevious = false;   // Previous state of the left trigger.
   bool _rTriggerPrevious = false;   // Previous state of the right trigger.
 
@@ -218,6 +219,8 @@ public:
   bool setMappingValue(const std::string& key, DWORD value);
 
 private:
+
+  void releaseAllActiveInputs();
 
   bool erasePressedKey(WORD key);
 

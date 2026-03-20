@@ -117,6 +117,7 @@ PlayStation controllers
 * PlayStation controllers may require XInput emulation tools in some setups
 * The current codebase also includes native HID fallback logic for supported PlayStation devices
 * DualSense touchpad cursor movement is enabled by default for native HID-connected DualSense controllers and can be adjusted from the Settings tab or config, including speed and dead zone
+* On Bluetooth DualSense connections, NexPad now requests enhanced HID reports automatically and falls back to simplified Bluetooth state parsing if full touchpad reports are unavailable
 
 Third-party controllers
 

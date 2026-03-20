@@ -837,30 +837,7 @@ void NexPad::setDisabled(bool disabled)
   {
     duration = 400;
     intensity = 10000;
-
-    while (_pressedKeys.size() != 0)
-    {
-      std::list<WORD>::iterator it = _pressedKeys.begin();
-
-      if (*it == VK_LBUTTON)
-      {
-        mouseEvent(MOUSEEVENTF_LEFTUP);
-      }
-      else if (*it == VK_RBUTTON)
-      {
-        mouseEvent(MOUSEEVENTF_RIGHTUP);
-      }
-      else if (*it == VK_MBUTTON)
-      {
-        mouseEvent(MOUSEEVENTF_MIDDLEUP);
-      }
-      else
-      {
-        inputKeyboardUp(*it);
-      }
-
-      _pressedKeys.erase(it);
-    }
+    releaseAllActiveInputs();
 
     if (ON_DISABLE)
     {
@@ -889,6 +866,17 @@ void NexPad::setDisabled(bool disabled)
 void NexPad::loop()
 {
   _currentState = _controller->GetState();
+  if (!_controller->GetLastConnectionState())
+  {
+    if (_controllerWasConnected)
+    {
+      releaseAllActiveInputs();
+    }
+    _controllerWasConnected = false;
+    return;
+  }
+
+  _controllerWasConnected = true;
 
   // Disable NexPad
   handleDisableButton();
@@ -1489,6 +1477,44 @@ void NexPad::mapMouseClick(DWORD STATE, DWORD keyDown, DWORD keyUp)
     mouseEvent(keyDown | keyUp);
     mouseEvent(keyDown | keyUp);
   }*/
+}
+
+void NexPad::releaseAllActiveInputs()
+{
+  while (_pressedKeys.size() != 0)
+  {
+    std::list<WORD>::iterator it = _pressedKeys.begin();
+
+    if (*it == VK_LBUTTON)
+    {
+      mouseEvent(MOUSEEVENTF_LEFTUP);
+    }
+    else if (*it == VK_RBUTTON)
+    {
+      mouseEvent(MOUSEEVENTF_RIGHTUP);
+    }
+    else if (*it == VK_MBUTTON)
+    {
+      mouseEvent(MOUSEEVENTF_MIDDLEUP);
+    }
+    else
+    {
+      inputKeyboardUp(*it);
+    }
+
+    _pressedKeys.erase(it);
+  }
+
+  _lTriggerPrevious = false;
+  _rTriggerPrevious = false;
+  _touchpadTouchWasActive = false;
+  _touchpadTapMoved = false;
+  _touchpadTapStartTick = 0;
+  _xboxClickStateLastIteration.clear();
+  _xboxClickIsDown.clear();
+  _xboxClickIsDownLong.clear();
+  _xboxClickDownLength.clear();
+  _xboxClickIsUp.clear();
 }
 
 // Description:

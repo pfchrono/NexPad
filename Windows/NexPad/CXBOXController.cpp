@@ -3,6 +3,7 @@
 #include <setupapi.h>
 #include <hidsdi.h>
 
+#include <cwctype>
 #include <vector>
 
 #pragma comment(lib, "setupapi.lib")
@@ -24,6 +25,13 @@ namespace
   {
     DualSense,    // PS5
     DualShock4,   // PS4
+  };
+
+  enum class PSTransportType
+  {
+    Unknown,
+    Usb,
+    Bluetooth,
   };
 
   struct DualSenseState
@@ -52,10 +60,15 @@ namespace
     std::vector<BYTE> inputBuffer;
     XINPUT_STATE cachedState = {};
     PSControllerType controllerType = PSControllerType::DualSense;
+    PSTransportType transportType = PSTransportType::Unknown;
+    DWORD lastValidReportTick = 0;
     TouchpadFrame touchpad = {};
   };
 
   DualSenseState g_dualSenseState;
+
+  void resetTouchpadFrame();
+  void clearDualSenseCachedState();
 
   bool isDualSenseProductId(const USHORT productId)
   {
@@ -67,6 +80,23 @@ namespace
   {
     return productId == 0x05C4 || // DualShock 4 v1
            productId == 0x09CC;   // DualShock 4 v2
+  }
+
+  bool isBluetoothDevicePath(const wchar_t* devicePath)
+  {
+    if (devicePath == nullptr)
+    {
+      return false;
+    }
+
+    std::wstring path(devicePath);
+    for (wchar_t& character : path)
+    {
+      character = static_cast<wchar_t>(towupper(character));
+    }
+
+    return path.find(L"BTHENUM") != std::wstring::npos ||
+           path.find(L"BTHLEDEVICE") != std::wstring::npos;
   }
 
   std::string describePlayStationBatteryLevel(const BYTE rawLevel, const bool charging)
@@ -147,10 +177,9 @@ namespace
     ZeroMemory(&g_dualSenseState.overlapped, sizeof(g_dualSenseState.overlapped));
     g_dualSenseState.inputReportLength = 64;
     g_dualSenseState.readPending = false;
-    g_dualSenseState.hasCachedState = false;
     g_dualSenseState.inputBuffer.clear();
-    ZeroMemory(&g_dualSenseState.cachedState, sizeof(g_dualSenseState.cachedState));
-    g_dualSenseState.touchpad = {};
+    g_dualSenseState.transportType = PSTransportType::Unknown;
+    clearDualSenseCachedState();
     g_playStationBatteryStatus = "Battery: Disconnected";
   }
 
@@ -166,10 +195,29 @@ namespace
     g_dualSenseState.touchpad.previousY = 0;
   }
 
+  void clearDualSenseCachedState()
+  {
+    g_dualSenseState.hasCachedState = false;
+    g_dualSenseState.lastValidReportTick = 0;
+    ZeroMemory(&g_dualSenseState.cachedState, sizeof(g_dualSenseState.cachedState));
+    resetTouchpadFrame();
+  }
+
   void clearTouchpadDeltas()
   {
     g_dualSenseState.touchpad.deltaX = 0;
     g_dualSenseState.touchpad.deltaY = 0;
+  }
+
+  void requestDualSenseEnhancedReports(HANDLE deviceHandle)
+  {
+    BYTE firmwareInfoReport[64] = {};
+    firmwareInfoReport[0] = 0x20;
+    HidD_GetFeature(deviceHandle, firmwareInfoReport, sizeof(firmwareInfoReport));
+
+    BYTE calibrationReport[64] = {};
+    calibrationReport[0] = 0x05;
+    HidD_GetFeature(deviceHandle, calibrationReport, sizeof(calibrationReport));
   }
 
   void updateDualSenseTouchpadState(const std::vector<BYTE>& report, const size_t baseOffset)
@@ -389,10 +437,14 @@ namespace
       }
 
       g_dualSenseState.deviceHandle = deviceHandle;
+      g_dualSenseState.transportType = isBluetoothDevicePath(detailData->DevicePath) ? PSTransportType::Bluetooth : PSTransportType::Usb;
       g_dualSenseState.inputBuffer.assign(g_dualSenseState.inputReportLength, 0);
       g_dualSenseState.readPending = false;
-      g_dualSenseState.hasCachedState = false;
-      ZeroMemory(&g_dualSenseState.cachedState, sizeof(g_dualSenseState.cachedState));
+      clearDualSenseCachedState();
+      if (g_dualSenseState.controllerType == PSControllerType::DualSense)
+      {
+        requestDualSenseEnhancedReports(deviceHandle);
+      }
       found = true;
       break;
     }
@@ -607,47 +659,8 @@ namespace
     }
   }
 
-  bool parseDualSenseReport(const std::vector<BYTE>& report, XINPUT_STATE* state)
+  void mapDualSenseButtons(const BYTE buttons1, const BYTE buttons2, WORD& xButtons)
   {
-    if (!state || report.size() < 12)
-    {
-      return false;
-    }
-
-    size_t baseOffset = 0;
-    if (report[0] == 0x01)
-    {
-      baseOffset = 1; // USB
-    }
-    else if (report[0] == 0x31)
-    {
-      baseOffset = 2; // Bluetooth
-    }
-    else
-    {
-      return false;
-    }
-
-    if (report.size() <= baseOffset + 9)
-    {
-      return false;
-    }
-
-    updateDualSenseBatteryStatus(report, baseOffset);
-    updateDualSenseTouchpadState(report, baseOffset);
-
-    const BYTE lx = report[baseOffset + 0];
-    const BYTE ly = report[baseOffset + 1];
-    const BYTE rx = report[baseOffset + 2];
-    const BYTE ry = report[baseOffset + 3];
-    const BYTE l2 = report[baseOffset + 4];
-    const BYTE r2 = report[baseOffset + 5];
-
-    const BYTE buttons1 = report[baseOffset + 7];
-    const BYTE buttons2 = report[baseOffset + 8];
-
-    WORD xButtons = 0;
-
     mapDualSenseDpadToXInput(static_cast<BYTE>(buttons1 & 0x0F), xButtons);
 
     if (buttons1 & 0x10) xButtons |= XINPUT_GAMEPAD_X;              // Square
@@ -661,6 +674,39 @@ namespace
     if (buttons2 & 0x20) xButtons |= XINPUT_GAMEPAD_START;          // Options
     if (buttons2 & 0x40) xButtons |= XINPUT_GAMEPAD_LEFT_THUMB;     // L3
     if (buttons2 & 0x80) xButtons |= XINPUT_GAMEPAD_RIGHT_THUMB;    // R3
+  }
+
+  bool parseDualSenseUsbReport(const std::vector<BYTE>& report, XINPUT_STATE* state)
+  {
+    if (!state || report.size() < 12 || report[0] != 0x01)
+    {
+      return false;
+    }
+
+    const size_t baseOffset = 1;
+    updateDualSenseBatteryStatus(report, baseOffset);
+    updateDualSenseTouchpadState(report, baseOffset);
+
+    const BYTE lx = report[baseOffset + 0];
+    const BYTE ly = report[baseOffset + 1];
+    const BYTE rx = report[baseOffset + 2];
+    const BYTE ry = report[baseOffset + 3];
+    BYTE l2 = report[baseOffset + 4];
+    BYTE r2 = report[baseOffset + 5];
+    const BYTE buttons1 = report[baseOffset + 7];
+    const BYTE buttons2 = report[baseOffset + 8];
+
+    if (l2 == 0 && (buttons2 & 0x04) != 0)
+    {
+      l2 = 0xFF;
+    }
+    if (r2 == 0 && (buttons2 & 0x08) != 0)
+    {
+      r2 = 0xFF;
+    }
+
+    WORD xButtons = 0;
+    mapDualSenseButtons(buttons1, buttons2, xButtons);
 
     state->dwPacketNumber = ++g_dualSenseState.packetNumber;
     state->Gamepad.wButtons = xButtons;
@@ -672,6 +718,115 @@ namespace
     state->Gamepad.sThumbRY = toThumbAxis(static_cast<BYTE>(255 - ry));
 
     return true;
+  }
+
+  bool parseDualSenseBluetoothSimpleReport(const std::vector<BYTE>& report, XINPUT_STATE* state)
+  {
+    if (!state || report.size() < 10 || report[0] != 0x01)
+    {
+      return false;
+    }
+
+    resetTouchpadFrame();
+    g_playStationBatteryStatus = "Battery: HID status unavailable";
+
+    BYTE l2 = report[8];
+    BYTE r2 = report[9];
+    const BYTE buttons1 = report[5];
+    const BYTE buttons2 = report[6];
+
+    if (l2 == 0 && (buttons2 & 0x04) != 0)
+    {
+      l2 = 0xFF;
+    }
+    if (r2 == 0 && (buttons2 & 0x08) != 0)
+    {
+      r2 = 0xFF;
+    }
+
+    WORD xButtons = 0;
+    mapDualSenseButtons(buttons1, buttons2, xButtons);
+
+    state->dwPacketNumber = ++g_dualSenseState.packetNumber;
+    state->Gamepad.wButtons = xButtons;
+    state->Gamepad.bLeftTrigger = l2;
+    state->Gamepad.bRightTrigger = r2;
+    state->Gamepad.sThumbLX = toThumbAxis(report[1]);
+    state->Gamepad.sThumbLY = toThumbAxis(static_cast<BYTE>(255 - report[2]));
+    state->Gamepad.sThumbRX = toThumbAxis(report[3]);
+    state->Gamepad.sThumbRY = toThumbAxis(static_cast<BYTE>(255 - report[4]));
+
+    return true;
+  }
+
+  bool parseDualSenseBluetoothEnhancedReport(const std::vector<BYTE>& report, XINPUT_STATE* state)
+  {
+    const size_t baseOffset = 2;
+    if (!state || report[0] != 0x31 || report.size() <= baseOffset + 52)
+    {
+      return false;
+    }
+
+    updateDualSenseBatteryStatus(report, baseOffset);
+    updateDualSenseTouchpadState(report, baseOffset);
+
+    const BYTE lx = report[baseOffset + 0];
+    const BYTE ly = report[baseOffset + 1];
+    const BYTE rx = report[baseOffset + 2];
+    const BYTE ry = report[baseOffset + 3];
+    BYTE l2 = report[baseOffset + 4];
+    BYTE r2 = report[baseOffset + 5];
+    const BYTE buttons1 = report[baseOffset + 7];
+    const BYTE buttons2 = report[baseOffset + 8];
+
+    if (l2 == 0 && (buttons2 & 0x04) != 0)
+    {
+      l2 = 0xFF;
+    }
+    if (r2 == 0 && (buttons2 & 0x08) != 0)
+    {
+      r2 = 0xFF;
+    }
+
+    WORD xButtons = 0;
+    mapDualSenseButtons(buttons1, buttons2, xButtons);
+
+    state->dwPacketNumber = ++g_dualSenseState.packetNumber;
+    state->Gamepad.wButtons = xButtons;
+    state->Gamepad.bLeftTrigger = l2;
+    state->Gamepad.bRightTrigger = r2;
+    state->Gamepad.sThumbLX = toThumbAxis(lx);
+    state->Gamepad.sThumbLY = toThumbAxis(static_cast<BYTE>(255 - ly));
+    state->Gamepad.sThumbRX = toThumbAxis(rx);
+    state->Gamepad.sThumbRY = toThumbAxis(static_cast<BYTE>(255 - ry));
+
+    return true;
+  }
+
+  bool parseDualSenseReport(const std::vector<BYTE>& report, XINPUT_STATE* state)
+  {
+    if (report.empty())
+    {
+      return false;
+    }
+
+    if (report[0] == 0x31)
+    {
+      return parseDualSenseBluetoothEnhancedReport(report, state);
+    }
+
+    if (report[0] != 0x01)
+    {
+      return false;
+    }
+
+    const bool isBluetoothSimple = g_dualSenseState.transportType == PSTransportType::Bluetooth || report.size() <= 10;
+    if (isBluetoothSimple)
+    {
+      return parseDualSenseBluetoothSimpleReport(report, state);
+    }
+
+    return parseDualSenseUsbReport(report, state);
   }
 
   // DualShock 4 (PS4) USB report: Report ID 0x01, data starts at byte 1.
@@ -775,10 +930,26 @@ namespace
 
       g_dualSenseState.cachedState = parsedState;
       g_dualSenseState.hasCachedState = true;
+      g_dualSenseState.lastValidReportTick = GetTickCount();
     }
     else if (!isDualShock4)
     {
       clearTouchpadDeltas();
+
+      if (g_dualSenseState.deviceHandle == INVALID_HANDLE_VALUE)
+      {
+        clearDualSenseCachedState();
+        return false;
+      }
+
+      const DWORD STALE_REPORT_TIMEOUT_MS = 250;
+      if (g_dualSenseState.hasCachedState &&
+          g_dualSenseState.lastValidReportTick != 0 &&
+          (GetTickCount() - g_dualSenseState.lastValidReportTick) > STALE_REPORT_TIMEOUT_MS)
+      {
+        ZeroMemory(&g_dualSenseState.cachedState, sizeof(g_dualSenseState.cachedState));
+        resetTouchpadFrame();
+      }
     }
 
     if (g_dualSenseState.hasCachedState)
@@ -823,6 +994,7 @@ XINPUT_STATE CXBOXController::GetState()
     _isConnected = false;
     _controllerType = "Disconnected";
     _batteryStatus = "Battery: Disconnected";
+    ZeroMemory(&this->_controllerState, sizeof(this->_controllerState));
     resetTouchpadFrame();
   }
 
@@ -849,6 +1021,7 @@ bool CXBOXController::IsConnected()
   _batteryStatus = _isConnected ? g_playStationBatteryStatus : "Battery: Disconnected";
   if (!_isConnected)
   {
+    ZeroMemory(&this->_controllerState, sizeof(this->_controllerState));
     resetTouchpadFrame();
   }
   return _isConnected;
