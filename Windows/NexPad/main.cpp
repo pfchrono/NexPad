@@ -229,7 +229,21 @@ namespace
 
   std::string getPresetDirectory()
   {
-    return "presets";
+    char path[MAX_PATH] = {};
+    const DWORD length = GetModuleFileNameA(NULL, path, MAX_PATH);
+    if (length == 0 || length >= MAX_PATH)
+    {
+      return "presets";
+    }
+
+    std::string fullPath(path, length);
+    const size_t separator = fullPath.find_last_of("\\/");
+    if (separator == std::string::npos)
+    {
+      return "presets";
+    }
+
+    return fullPath.substr(0, separator) + "\\presets";
   }
 
   void ensurePresetDirectory()

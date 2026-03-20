@@ -126,7 +126,7 @@ Third-party controllers
 Configuration
 ======
 
-NexPad reads `config.ini` from the working directory.
+NexPad reads `config.ini` from the executable directory.
 
 If you delete or break the active config file, NexPad can generate a fresh one on the next run.
 
@@ -211,27 +211,29 @@ Helper scripts:
 Build output layout:
 
 ```text
-Debug/
-  NexPad.exe
-  config.ini
-  presets/
-
-x64/
-  Debug/
+debug/
+  x32/
+    NexPad.exe
+    config.ini
+    presets/
+  x64/
     NexPad.exe
     config.ini
     presets/
 
 release/
-  NexPad.exe
-  config.ini
-  presets/
-  README.md
-  LICENSE
+  x32/
+    NexPad.exe
+    config.ini
+    presets/
+    README.md
+    LICENSE
   x64/
     NexPad.exe
     config.ini
     presets/
+    README.md
+    LICENSE
 ```
 
 Intermediate objects, PDBs, libs, and tlogs are written under `Windows/.build/`.
@@ -245,7 +247,7 @@ To build and package release artifacts locally:
 .\scripts\package-release.ps1 -Version v0.1.0
 ```
 
-This generates zipped Win32 and x64 release artifacts under `artifacts/` using the same `release/` layout produced by the Visual Studio project.
+This generates zipped Win32 and x64 release artifacts under `artifacts/` using the same `release/x32` and `release/x64` layout produced by the Visual Studio project.
 
 Each packaged zip also gets a matching SHA256 checksum file next to it:
 

@@ -92,6 +92,7 @@ function Write-ChecksumFile {
 }
 
 $solutionPath = Join-Path $RepoRoot "Windows\NexPad.sln"
+$debugRoot = Join-Path $RepoRoot "debug"
 $releaseRoot = Join-Path $RepoRoot "release"
 $artifactsRoot = Join-Path $RepoRoot "artifacts"
 $stagingRoot = Join-Path $artifactsRoot "staging"
@@ -101,9 +102,11 @@ if (!(Test-Path $solutionPath)) {
 }
 
 Remove-Item $artifactsRoot -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item $debugRoot -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item $releaseRoot -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item (Join-Path $RepoRoot "x64") -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item (Join-Path $RepoRoot "NexPad.exe") -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $RepoRoot "Debug") -Recurse -Force -ErrorAction SilentlyContinue
 
 New-Item -ItemType Directory -Path $artifactsRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
@@ -118,16 +121,16 @@ $x64Stage = Join-Path $stagingRoot "x64"
 New-Item -ItemType Directory -Path $win32Stage -Force | Out-Null
 New-Item -ItemType Directory -Path $x64Stage -Force | Out-Null
 
-Copy-Item (Join-Path $releaseRoot "NexPad.exe") $win32Stage -Force
-Copy-Item (Join-Path $releaseRoot "config.ini") $win32Stage -Force
-Copy-Item (Join-Path $releaseRoot "README.md") $win32Stage -Force
-Copy-Item (Join-Path $releaseRoot "LICENSE") $win32Stage -Force
-Copy-DirectoryContents -Source (Join-Path $releaseRoot "presets") -Destination (Join-Path $win32Stage "presets")
+Copy-Item (Join-Path $releaseRoot "x32\NexPad.exe") $win32Stage -Force
+Copy-Item (Join-Path $releaseRoot "x32\config.ini") $win32Stage -Force
+Copy-Item (Join-Path $releaseRoot "x32\README.md") $win32Stage -Force
+Copy-Item (Join-Path $releaseRoot "x32\LICENSE") $win32Stage -Force
+Copy-DirectoryContents -Source (Join-Path $releaseRoot "x32\presets") -Destination (Join-Path $win32Stage "presets")
 
 Copy-Item (Join-Path $releaseRoot "x64\NexPad.exe") $x64Stage -Force
 Copy-Item (Join-Path $releaseRoot "x64\config.ini") $x64Stage -Force
-Copy-Item (Join-Path $releaseRoot "README.md") $x64Stage -Force
-Copy-Item (Join-Path $releaseRoot "LICENSE") $x64Stage -Force
+Copy-Item (Join-Path $releaseRoot "x64\README.md") $x64Stage -Force
+Copy-Item (Join-Path $releaseRoot "x64\LICENSE") $x64Stage -Force
 Copy-DirectoryContents -Source (Join-Path $releaseRoot "x64\presets") -Destination (Join-Path $x64Stage "presets")
 
 $win32Zip = Join-Path $artifactsRoot ("NexPad-win32-{0}.zip" -f $Version)

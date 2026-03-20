@@ -70,23 +70,23 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)..\Debug\</OutDir>
+    <OutDir>$(SolutionDir)..\debug\x32\</OutDir>
     <IntDir>$(SolutionDir).build\$(MSBuildProjectName)\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)..\</OutDir>
+    <OutDir>$(SolutionDir)..\release\x32\</OutDir>
     <IntDir>$(SolutionDir).build\$(MSBuildProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.16299.0\shared;C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.16299.0\um;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)..\x64\Debug\</OutDir>
+    <OutDir>$(SolutionDir)..\debug\x64\</OutDir>
     <IntDir>$(SolutionDir).build\$(MSBuildProjectName)\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)..\x64\</OutDir>
+    <OutDir>$(SolutionDir)..\release\x64\</OutDir>
     <IntDir>$(SolutionDir).build\$(MSBuildProjectName)\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -130,12 +130,11 @@ xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul</Command>
       <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>if not exist "$(SolutionDir)..\release\presets" mkdir "$(SolutionDir)..\release\presets"
-copy /Y "$(TargetPath)" "$(SolutionDir)..\release\$(TargetFileName)"
-copy /Y "$(SolutionDir)..\config.ini" "$(SolutionDir)..\release\config.ini"
-xcopy /E /I /Y "$(SolutionDir)..\presets" "$(SolutionDir)..\release\presets" &gt;nul
-copy /Y "$(SolutionDir)..\README.md" "$(SolutionDir)..\release\README.md"
-copy /Y "$(SolutionDir)..\LICENSE" "$(SolutionDir)..\release\LICENSE"</Command>
+      <Command>if not exist "$(OutDir)presets" mkdir "$(OutDir)presets"
+    copy /Y "$(SolutionDir)..\config.ini" "$(OutDir)config.ini"
+    xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul
+    copy /Y "$(SolutionDir)..\README.md" "$(OutDir)README.md"
+    copy /Y "$(SolutionDir)..\LICENSE" "$(OutDir)LICENSE"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -180,14 +179,10 @@ xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul</Command>
     </Link>
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)presets" mkdir "$(OutDir)presets"
-copy /Y "$(SolutionDir)..\config.ini" "$(OutDir)config.ini"
+    copy /Y "$(SolutionDir)..\config.ini" "$(OutDir)config.ini"
     xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul
-    if not exist "$(SolutionDir)..\release\x64\presets" mkdir "$(SolutionDir)..\release\x64\presets"
-    copy /Y "$(TargetPath)" "$(SolutionDir)..\release\x64\$(TargetFileName)"
-    copy /Y "$(SolutionDir)..\config.ini" "$(SolutionDir)..\release\x64\config.ini"
-    xcopy /E /I /Y "$(SolutionDir)..\presets" "$(SolutionDir)..\release\x64\presets" &gt;nul
-    copy /Y "$(SolutionDir)..\README.md" "$(SolutionDir)..\release\README.md"
-    copy /Y "$(SolutionDir)..\LICENSE" "$(SolutionDir)..\release\LICENSE"</Command>
+    copy /Y "$(SolutionDir)..\README.md" "$(OutDir)README.md"
+    copy /Y "$(SolutionDir)..\LICENSE" "$(OutDir)LICENSE"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

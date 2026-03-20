@@ -7,6 +7,40 @@
 
 namespace
 {
+  std::string getExecutableDirectory()
+  {
+    char path[MAX_PATH] = {};
+    const DWORD length = GetModuleFileNameA(NULL, path, MAX_PATH);
+    if (length == 0 || length >= MAX_PATH)
+    {
+      return ".";
+    }
+
+    std::string fullPath(path, length);
+    const size_t separator = fullPath.find_last_of("\\/");
+    if (separator == std::string::npos)
+    {
+      return ".";
+    }
+
+    return fullPath.substr(0, separator);
+  }
+
+  std::string joinPath(const std::string& left, const std::string& right)
+  {
+    if (left.empty() || left == ".")
+    {
+      return right;
+    }
+
+    if (left.back() == '\\' || left.back() == '/')
+    {
+      return left + right;
+    }
+
+    return left + "\\" + right;
+  }
+
   void appendHexSetting(std::ostringstream& stream, const std::string& key, DWORD value)
   {
     stream << key << " = 0x"
@@ -193,6 +227,7 @@ void mouseEvent(DWORD dwFlags, DWORD mouseData = 0)
 NexPad::NexPad(CXBOXController * controller)
   : _controller(controller)
 {
+  _configPath = joinPath(getExecutableDirectory(), "config.ini");
 }
 
 void NexPad::setWindowHandle(HWND windowHandle)
