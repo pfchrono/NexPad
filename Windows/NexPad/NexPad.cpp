@@ -235,6 +235,11 @@ int NexPad::getTouchpadEnabled() const
   return TOUCHPAD_ENABLED;
 }
 
+int NexPad::getTouchpadDeadZone() const
+{
+  return TOUCHPAD_DEAD_ZONE;
+}
+
 float NexPad::getTouchpadSpeed() const
 {
   return TOUCHPAD_SPEED;
@@ -299,6 +304,18 @@ void NexPad::setTouchpadEnabled(int value)
 {
   TOUCHPAD_ENABLED = value ? 1 : 0;
   notifyStatus(std::string("DualSense touchpad cursor ") + (TOUCHPAD_ENABLED ? "Enabled" : "Disabled"));
+}
+
+void NexPad::setTouchpadDeadZone(int value)
+{
+  if (value >= 0)
+  {
+    TOUCHPAD_DEAD_ZONE = value;
+
+    std::ostringstream touchpadDeadZoneMessage;
+    touchpadDeadZoneMessage << "Applied touchpad dead zone " << TOUCHPAD_DEAD_ZONE;
+    notifyStatus(touchpadDeadZoneMessage.str());
+  }
 }
 
 void NexPad::setTouchpadSpeed(float value)

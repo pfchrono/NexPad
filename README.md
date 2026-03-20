@@ -116,7 +116,7 @@ PlayStation controllers
 
 * PlayStation controllers may require XInput emulation tools in some setups
 * The current codebase also includes native HID fallback logic for supported PlayStation devices
-* DualSense touchpad cursor movement is enabled by default for native HID-connected DualSense controllers and can be adjusted from the Settings tab or config
+* DualSense touchpad cursor movement is enabled by default for native HID-connected DualSense controllers and can be adjusted from the Settings tab or config, including speed and dead zone
 
 Third-party controllers
 
@@ -158,6 +158,8 @@ TOUCHPAD_ENABLED = 1
 TOUCHPAD_DEAD_ZONE = 2
 TOUCHPAD_SPEED = 1.200
 ```
+
+The Settings tab now exposes touchpad enable, speed, and dead zone controls for live tuning and save/reload workflows.
 
 Reference links:
 

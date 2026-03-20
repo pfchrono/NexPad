@@ -168,6 +168,8 @@ public:
 
   int getTouchpadEnabled() const;
 
+  int getTouchpadDeadZone() const;
+
   float getTouchpadSpeed() const;
 
   int getLoopIntervalMs() const;
@@ -183,6 +185,8 @@ public:
   void setScrollSpeed(float value);
 
   void setTouchpadEnabled(int value);
+
+  void setTouchpadDeadZone(int value);
 
   void setTouchpadSpeed(float value);
 
