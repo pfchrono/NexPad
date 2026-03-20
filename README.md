@@ -1,6 +1,10 @@
 NexPad
 ======
 
+[![Build NexPad](https://github.com/pfchrono/NexPad/actions/workflows/build.yml/badge.svg)](https://github.com/pfchrono/NexPad/actions/workflows/build.yml)
+[![Latest Release](https://img.shields.io/github/v/release/pfchrono/NexPad)](https://github.com/pfchrono/NexPad/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/pfchrono/NexPad/total)](https://github.com/pfchrono/NexPad/releases)
+
 Controller-first desktop navigation for Windows.
 
 NexPad is a lightweight Windows utility that maps controller input to mouse and keyboard actions for desktop navigation, media control, and couch-first PC use. It is designed for living-room PCs, handhelds, and setups where a gamepad is more practical than a keyboard and mouse.
@@ -204,10 +208,12 @@ To build and package release artifacts locally:
 
 This generates zipped Win32 and x64 release artifacts under `artifacts/` using the same `release/` layout produced by the Visual Studio project.
 
+The current release notes source for the published `v0.1.0` release lives in `docs/releases/v0.1.0.md`.
+
 GitHub Publishing
 ======
 
-This repository is ready for a GitHub remote, but no remote is configured yet.
+This repository is published at `https://github.com/pfchrono/NexPad`.
 
 Continuous integration is defined in `.github/workflows/build.yml` and will:
 
@@ -219,20 +225,15 @@ Continuous integration is defined in `.github/workflows/build.yml` and will:
 
 Typical publish flow:
 
-1. Create a new empty GitHub repository named `NexPad`.
-2. Add the remote:
+1. Push the latest `main` branch.
+2. Create and push a version tag such as `v0.1.1`:
 
 ```powershell
-git remote add origin https://github.com/<owner>/NexPad.git
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
-3. Push the current branch:
-
-```powershell
-git push -u origin main
-```
-
-4. Create your first GitHub release once you are ready to publish packaged binaries.
+3. Let the tag-triggered workflow publish the packaged assets to GitHub Releases.
 
 For a manual release process, see `RELEASE_CHECKLIST.md`.
 
