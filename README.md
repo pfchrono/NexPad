@@ -284,6 +284,32 @@ git push origin v0.1.1
 
 For a manual release process, see `RELEASE_CHECKLIST.md`.
 
+Spec-Driven Workflow
+======
+
+This repository is now initialized for Spec Kit with GitHub Copilot support.
+
+Generated project workflow assets live under:
+
+* `.specify/`
+* `.github/prompts/`
+* `.github/agents/`
+
+Recommended NexPad workflow:
+
+1. Start with `/speckit.constitution` to amend the project rules when needed.
+2. Use `/speckit.specify` to write the feature spec in terms of user-visible behavior.
+3. Use `/speckit.plan` to produce the implementation plan with actual NexPad file paths, build validation, and hardware regression checks.
+4. Use `/speckit.tasks` to break the plan into actionable steps.
+5. Use `/speckit.implement` to execute the approved tasks.
+
+For NexPad changes, plans should explicitly cover:
+
+* affected files under `Windows/NexPad/`
+* required MSBuild validation
+* manual controller hardware checks when input behavior changes
+* config and README updates when runtime behavior changes
+
 License
 ======
 
