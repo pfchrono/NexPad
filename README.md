@@ -175,6 +175,12 @@ Screenshots
 
 Actual NexPad UI captures:
 
+To refresh these captures locally after building the app:
+
+```powershell
+.\scripts\capture-screenshots.ps1 -ExePath .\release\x64\NexPad.exe
+```
+
 Status tab:
 
 ![NexPad Status Tab](docs/assets/screenshots/status-tab.png)
@@ -246,7 +252,7 @@ Release Packaging
 To build and package release artifacts locally:
 
 ```powershell
-.\scripts\package-release.ps1 -Version v0.1.0
+.\scripts\package-release.ps1 -Version vX.Y.Z
 ```
 
 This generates zipped Win32 and x64 release artifacts under `artifacts/` using the same `release/x32` and `release/x64` layout produced by the Visual Studio project.
@@ -256,7 +262,7 @@ Each packaged zip also gets a matching SHA256 checksum file next to it:
 * `NexPad-win32-<version>.zip.sha256`
 * `NexPad-x64-<version>.zip.sha256`
 
-The current release notes source for the published `v0.1.0` release lives in `docs/releases/v0.1.0.md`.
+Release notes live under `docs/releases/` with one file per published version, for example `docs/releases/v0.1.4.md`.
 
 GitHub Publishing
 ======
@@ -274,11 +280,11 @@ Continuous integration is defined in `.github/workflows/build.yml` and will:
 Typical publish flow:
 
 1. Push the latest `main` branch.
-2. Create and push a version tag such as `v0.1.1`:
+2. Create and push a version tag such as `vX.Y.Z`:
 
 ```powershell
-git tag v0.1.1
-git push origin v0.1.1
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 3. Let the tag-triggered workflow publish the packaged assets to GitHub Releases.

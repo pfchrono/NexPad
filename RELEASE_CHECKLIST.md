@@ -15,14 +15,14 @@ Build and package
 1. Run the packaging script locally:
 
 ```powershell
-.\scripts\package-release.ps1 -Version v0.1.0
+.\scripts\package-release.ps1 -Version vX.Y.Z
 ```
 
 2. Confirm these archives are produced under `artifacts/`:
-   - `NexPad-win32-v0.1.0.zip`
-   - `NexPad-x64-v0.1.0.zip`
-   - `NexPad-win32-v0.1.0.zip.sha256`
-   - `NexPad-x64-v0.1.0.zip.sha256`
+   - `NexPad-win32-vX.Y.Z.zip`
+   - `NexPad-x64-vX.Y.Z.zip`
+   - `NexPad-win32-vX.Y.Z.zip.sha256`
+   - `NexPad-x64-vX.Y.Z.zip.sha256`
 3. Open both zip files and verify they contain:
    - `NexPad.exe`
    - `config.ini`
@@ -37,7 +37,7 @@ GitHub workflow
 
 1. Push the latest `main` branch.
 2. Confirm the GitHub Actions workflow completes successfully.
-3. If you are cutting a release, create and push a version tag such as `v0.1.0`.
+3. If you are cutting a release, create and push a version tag such as `vX.Y.Z`.
 4. Confirm the tag-triggered workflow uploads the packaged zip artifacts and checksum files.
 
 Publish release

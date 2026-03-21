@@ -9,6 +9,28 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Resolve-DefaultExePath {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RepoRoot
+  )
+
+  $candidatePaths = @(
+    (Join-Path $RepoRoot 'release\x64\NexPad.exe'),
+    (Join-Path $RepoRoot 'release\x32\NexPad.exe'),
+    (Join-Path $RepoRoot 'debug\x64\NexPad.exe'),
+    (Join-Path $RepoRoot 'debug\x32\NexPad.exe')
+  )
+
+  foreach ($candidatePath in $candidatePaths) {
+    if (Test-Path $candidatePath) {
+      return $candidatePath
+    }
+  }
+
+  throw 'No built NexPad executable was found. Build the solution first or pass -ExePath explicitly.'
+}
+
 Add-Type -AssemblyName System.Drawing
 if (-not ('NexPadCaptureNative' -as [type])) {
 Add-Type @"
@@ -69,7 +91,7 @@ public static class NexPadCaptureNative
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if ([string]::IsNullOrWhiteSpace($ExePath)) {
-  $ExePath = Join-Path $repoRoot 'Debug\NexPad.exe'
+  $ExePath = Resolve-DefaultExePath -RepoRoot $repoRoot
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
