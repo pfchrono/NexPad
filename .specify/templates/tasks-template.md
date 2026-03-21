@@ -20,10 +20,11 @@ description: "Task list template for feature implementation"
 
 ## Path Conventions
 
-- **Single project**: `src/`, `tests/` at repository root
-- **Web app**: `backend/src/`, `frontend/src/`
-- **Mobile**: `api/src/`, `ios/src/` or `android/src/`
-- Paths shown below assume single project - adjust based on plan.md structure
+- **Core application**: `Windows/NexPad/` for native C++ sources, headers, resources, and project files
+- **Build and packaging**: `scripts/` plus output validation through `debug/`, `release/`, and `artifacts/` when relevant
+- **Documentation and runtime assets**: `README.md`, `RELEASE_CHECKLIST.md`, `Configs/`, `presets/`, and `docs/`
+- **Feature artifacts**: `specs/[###-feature-name]/`
+- Paths shown below should be adjusted to the actual plan.md structure, but NexPad tasks should default to the Win32 repository layout above
 
 <!-- 
   ============================================================================
@@ -48,9 +49,9 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project structure per implementation plan
-- [ ] T002 Initialize [language] project with [framework] dependencies
-- [ ] T003 [P] Configure linting and formatting tools
+- [ ] T001 Create or verify feature artifacts under `specs/[###-feature-name]/`
+- [ ] T002 Identify impacted files under `Windows/NexPad/`, `scripts/`, `README.md`, and runtime asset locations
+- [ ] T003 [P] Capture feature-specific validation commands and manual hardware checks from the plan
 
 ---
 
@@ -62,12 +63,11 @@ description: "Task list template for feature implementation"
 
 Examples of foundational tasks (adjust based on your project):
 
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T004 Add or adjust shared controller, transport, or configuration state in `Windows/NexPad/*.h`
+- [ ] T005 [P] Implement core parsing or config plumbing in `Windows/NexPad/CXBOXController.cpp`, `Windows/NexPad/NexPad.cpp`, or `Windows/NexPad/ConfigFile.cpp`
+- [ ] T006 [P] Add safe reset or disconnect handling for any new controller interaction state
+- [ ] T007 Define required doc or preset/config updates that every user story depends on
+- [ ] T008 Capture required MSBuild validation and any packaging validation gates for the feature
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -88,12 +88,12 @@ Examples of foundational tasks (adjust based on your project):
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Create [Entity1] model in src/models/[entity1].py
-- [ ] T013 [P] [US1] Create [Entity2] model in src/models/[entity2].py
-- [ ] T014 [US1] Implement [Service] in src/services/[service].py (depends on T012, T013)
-- [ ] T015 [US1] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T016 [US1] Add validation and error handling
-- [ ] T017 [US1] Add logging for user story 1 operations
+- [ ] T012 [P] [US1] Update shared controller data structures in `Windows/NexPad/*.h`
+- [ ] T013 [P] [US1] Implement the primary input behavior in `Windows/NexPad/CXBOXController.cpp` or `Windows/NexPad/NexPad.cpp`
+- [ ] T014 [US1] Integrate the behavior into the main NexPad loop or mapping path in `Windows/NexPad/NexPad.cpp`
+- [ ] T015 [US1] Add or update config defaults in `Windows/NexPad/ConfigFile.cpp` if the story introduces a user-facing setting
+- [ ] T016 [US1] Add validation and fail-safe handling for stale, missing, or conflicting controller input
+- [ ] T017 [US1] Document the user-visible behavior in `README.md` if the story changes runtime behavior
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -112,10 +112,10 @@ Examples of foundational tasks (adjust based on your project):
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Create [Entity] model in src/models/[entity].py
-- [ ] T021 [US2] Implement [Service] in src/services/[service].py
-- [ ] T022 [US2] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T023 [US2] Integrate with User Story 1 components (if needed)
+- [ ] T020 [P] [US2] Update secondary controller or UI/config paths in `Windows/NexPad/`
+- [ ] T021 [US2] Preserve or refine interaction behavior shared with User Story 1 in the relevant Win32 source files
+- [ ] T022 [US2] Add or update any settings-tab or preset-facing behavior if required by the story
+- [ ] T023 [US2] Verify integration with User Story 1 behavior and unchanged legacy mappings
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -134,9 +134,9 @@ Examples of foundational tasks (adjust based on your project):
 
 ### Implementation for User Story 3
 
-- [ ] T026 [P] [US3] Create [Entity] model in src/models/[entity].py
-- [ ] T027 [US3] Implement [Service] in src/services/[service].py
-- [ ] T028 [US3] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T026 [P] [US3] Implement transport or disconnect safety handling in `Windows/NexPad/CXBOXController.cpp` or `Windows/NexPad/NexPad.cpp`
+- [ ] T027 [US3] Add recovery or fallback behavior for limited report modes, stale state, or reconnect flows
+- [ ] T028 [US3] Validate unchanged behavior for unaffected controllers and existing mappings
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -150,12 +150,14 @@ Examples of foundational tasks (adjust based on your project):
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] TXXX [P] Documentation updates in docs/
+- [ ] TXXX [P] Documentation updates in `README.md`, `RELEASE_CHECKLIST.md`, or `docs/`
 - [ ] TXXX Code cleanup and refactoring
 - [ ] TXXX Performance optimization across all stories
-- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
+- [ ] TXXX [P] Additional automated tests if the feature explicitly requires them
 - [ ] TXXX Security hardening
-- [ ] TXXX Run quickstart.md validation
+- [ ] TXXX Run required `Debug|Win32` and `Debug|x64` MSBuild validation
+- [ ] TXXX Run packaging validation if runtime assets, output layout, or release behavior changed
+- [ ] TXXX Complete manual controller hardware checks if the feature changes input behavior
 
 ---
 
@@ -179,9 +181,9 @@ Examples of foundational tasks (adjust based on your project):
 ### Within Each User Story
 
 - Tests (if included) MUST be written and FAIL before implementation
-- Models before services
-- Services before endpoints
-- Core implementation before integration
+- Shared controller state before behavior integration
+- HID or config plumbing before UI or documentation polish
+- Core implementation before regression validation
 - Story complete before moving to next priority
 
 ### Parallel Opportunities
@@ -248,4 +250,6 @@ With multiple developers:
 - Verify tests fail before implementing
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
+- Brownfield NexPad tasks should name actual files under `Windows/NexPad/`, `scripts/`, `README.md`, `Configs/`, or `presets/`
+- Controller-affecting features should include both build validation and explicit manual hardware regression checks
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence

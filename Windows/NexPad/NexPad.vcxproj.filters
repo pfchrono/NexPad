@@ -29,6 +29,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AppVersion.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="NexPad.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -1,6 +1,6 @@
 #include "ConfigFile.h"
 #include <iostream>
-#include <fstream> 
+#include <fstream>
 #include <windows.h>
 
 void ConfigFile::removeComment(std::string &line) const
@@ -104,7 +104,8 @@ void ConfigFile::ExtractKeys()
     outfile << "#	SET 0 FOR NO FUNCTION." << std::endl;
     outfile << "#	AVAILABLE VALUES AT https://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.reference.xinput_gamepad(v=vs.85).aspx" << std::endl;
     outfile << "#	TIP: Sum the hex value for double button shortcuts eg. 0x0010(START) 0x0020(BACK) so 0x0030(START+BACK) will trigger the event only when both are pressed." << std::endl;
-    outfile << "\n" << std::endl;
+    outfile << "\n"
+            << std::endl;
     outfile << "CONFIG_MOUSE_LEFT = 0x1000	      # Left mouse button          # A" << std::endl;
     outfile << "CONFIG_MOUSE_RIGHT = 0x4000	      # Right mouse button         # X" << std::endl;
     outfile << "CONFIG_MOUSE_MIDDLE = 0x0040	  # Middle mouse button        # LEFT_THUMB" << std::endl;
@@ -113,11 +114,13 @@ void ConfigFile::ExtractKeys()
     outfile << "CONFIG_DISABLE_VIBRATION = 0x0011 # Disables NexPad vibration # START + DPAD_UP" << std::endl;
     outfile << "CONFIG_SPEED_CHANGE =  0x0300	  # Change speed               # LEFT_SHOULDER + RIGHT_SHOULDER" << std::endl;
     outfile << "CONFIG_OSK = 0x8000               # Toggle on-screen keyboard  # Y" << std::endl;
-    outfile << "\n" << std::endl;
+    outfile << "\n"
+            << std::endl;
     outfile << "#	KEYBOARD SHORTCUTS ON CONTROLLER BUTTONS" << std::endl;
     outfile << "#	SET 0 FOR NO FUNCTION" << std::endl;
     outfile << "#	AVAILABLE VALUES AT> https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731" << std::endl;
-    outfile << "\n" << std::endl;
+    outfile << "\n"
+            << std::endl;
     outfile << "GAMEPAD_DPAD_UP = 0x26            # Up Arrow" << std::endl;
     outfile << "GAMEPAD_DPAD_DOWN = 0x28          # Down Arrow" << std::endl;
     outfile << "GAMEPAD_DPAD_LEFT = 0x25          # Left Arrow" << std::endl;
@@ -136,7 +139,8 @@ void ConfigFile::ExtractKeys()
     outfile << "GAMEPAD_TRIGGER_RIGHT = 0x09      # Tab" << std::endl;
     outfile << "ON_ENABLE = 0x86                  # F23 (Key to be pressed when disable is toggled)" << std::endl;
     outfile << "ON_DISABLE = 0x87                 # F24 (Key to be pressed when disable is toggled)" << std::endl;
-    outfile << "\n" << std::endl;
+    outfile << "\n"
+            << std::endl;
     outfile << "# ADVANCED CONFIGURATION SETTINGS" << std::endl;
     outfile << "#  ALLOWED CURSOR SPEEDS, FIRST WILL BE CHOSEN BY DEFAULT.  VALUES > 1.0 WILL BE IGNORED.  NO SPACES." << std::endl;
     outfile << "CURSOR_SPEED = ULTRALOW=0.040,LOW=0.080,MED=0.120,HIGH=0.160,ULTRAHIGH=0.200" << std::endl;
@@ -149,15 +153,15 @@ void ConfigFile::ExtractKeys()
     outfile << "TRIGGER_DEAD_ZONE = 0 # Dead zone for the left and right triggers to detect a trigger press. Range from 0 (accept all input) to 255 (ignore all input)." << std::endl;
     outfile << "CURRENT_SPEED_INDEX = 0 # Selected speed preset index saved by the GUI" << std::endl;
     outfile << "SCROLL_SPEED = 0.125 # Speed at which you scroll (scalar)" << std::endl;
-    outfile << "TOUCHPAD_ENABLED = 1 # Enable DualSense touchpad cursor control (0 = disabled, 1 = enabled)." << std::endl;
-    outfile << "TOUCHPAD_DEAD_ZONE = 2 # Minimum per-frame touchpad movement before cursor motion is applied." << std::endl;
-    outfile << "TOUCHPAD_SPEED = 1.200 # Sensitivity multiplier for DualSense touchpad cursor movement." << std::endl;
+    outfile << "TOUCHPAD_ENABLED = 1 # Enable DualSense touchpad cursor, tap, and two-finger scroll gestures (0 = disabled, 1 = enabled)." << std::endl;
+    outfile << "TOUCHPAD_DEAD_ZONE = 2 # Minimum per-frame touchpad movement before cursor or two-finger scroll motion is applied." << std::endl;
+    outfile << "TOUCHPAD_SPEED = 1.200 # Sensitivity multiplier for DualSense one-finger touchpad cursor movement." << std::endl;
     outfile << "INIT_DISABLED = 0 # Start NexPad Disabled (1 for disabled, 0 for enabled)" << std::endl;
 
     // End config dump
 
     outfile.close();
-    
+
     file.open(fName.c_str());
 
     if (!file)
@@ -172,7 +176,7 @@ void ConfigFile::ExtractKeys()
     }
   }
 
-  //exitWithError("\nSafety exit!\n");
+  // exitWithError("\nSafety exit!\n");
 
   std::string line;
   size_t lineNo = 0;

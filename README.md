@@ -41,7 +41,7 @@ Features
 ======
 
 * Desktop cursor control from a controller
-* DualSense touchpad cursor control through the native HID fallback path
+* DualSense one-finger touchpad cursor control plus two-finger scrolling through the native HID fallback path
 * Scroll wheel emulation
 * Mouse click mapping
 * Keyboard mapping for controller buttons and triggers
@@ -116,7 +116,7 @@ PlayStation controllers
 
 * PlayStation controllers may require XInput emulation tools in some setups
 * The current codebase also includes native HID fallback logic for supported PlayStation devices
-* DualSense touchpad cursor movement is enabled by default for native HID-connected DualSense controllers and can be adjusted from the Settings tab or config, including speed and dead zone
+* DualSense touchpad cursor movement and two-finger scrolling are enabled by default for native HID-connected DualSense controllers and can be adjusted from the Settings tab or config, including speed and dead zone
 * On Bluetooth DualSense connections, NexPad now requests enhanced HID reports automatically and falls back to simplified Bluetooth state parsing if full touchpad reports are unavailable
 
 Third-party controllers
@@ -142,12 +142,13 @@ Important config groups:
 DualSense touchpad support
 ======
 
-NexPad can use the DualSense touchpad as an additional mouse input source when the controller is connected through the native HID fallback path.
+NexPad can use the DualSense touchpad as an additional mouse and scroll input source when the controller is connected through the native HID fallback path.
 
 Current scope:
 
 * DualSense only
-* movement plus tap-to-click
+* one-finger cursor movement plus tap-to-click
+* two-finger vertical and horizontal scrolling when reliable two-touch data is available
 * additive to the existing stick mouse control
 * enabled by default in the shipped config
 * adjustable from the Settings tab or `config.ini`
@@ -160,7 +161,7 @@ TOUCHPAD_DEAD_ZONE = 2
 TOUCHPAD_SPEED = 1.200
 ```
 
-The Settings tab now exposes touchpad enable, speed, and dead zone controls for live tuning and save/reload workflows. A short touchpad tap without pointer drag also triggers a left click.
+The Settings tab now exposes touchpad enable, speed, and dead zone controls for live tuning and save or reload workflows. A short one-finger touchpad tap without pointer drag still triggers a left click, while a reliable two-finger gesture emits scroll wheel input without moving the cursor.
 
 Reference links:
 

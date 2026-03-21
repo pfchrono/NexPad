@@ -37,6 +37,7 @@
 #pragma comment(linker, "/ENTRY:wWinMainCRTStartup")
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS")
 
+#include "AppVersion.h"
 #include "NexPad.h"
 #include "resource.h"
 
@@ -52,9 +53,11 @@ namespace
     IDC_CONTROLLER_TEXT,
     IDC_CONTROLLER_TYPE_TEXT,
     IDC_BATTERY_TEXT,
+    IDC_BATTERY_BAR,
     IDC_SPEED_TEXT,
     IDC_SCROLL_TEXT,
     IDC_CONFIG_TEXT,
+    IDC_VERSION_TEXT,
     IDC_TOGGLE_BUTTON,
     IDC_STARTUP_INFO,
     IDC_OUTPUT_INFO,
@@ -105,9 +108,11 @@ namespace
     HWND controllerText = NULL;
     HWND controllerTypeText = NULL;
     HWND batteryText = NULL;
+    HWND batteryBar = NULL;
     HWND speedText = NULL;
     HWND scrollText = NULL;
     HWND configText = NULL;
+    HWND versionText = NULL;
     HWND toggleButton = NULL;
     HWND startupInfo = NULL;
     HWND outputInfo = NULL;
@@ -162,15 +167,17 @@ namespace
     std::string cachedControllerText;
     std::string cachedControllerTypeText;
     std::string cachedBatteryText;
+    std::string cachedBatteryVisualKey;
     std::string cachedSpeedText;
     std::string cachedScrollText;
     std::string cachedConfigText;
+    std::string cachedVersionText;
     std::string cachedToggleButtonText;
     std::string cachedTrayTooltip;
 
     GuiState()
-      : controller(1),
-        nexPad(&controller)
+        : controller(1),
+          nexPad(&controller)
     {
     }
   };
@@ -289,12 +296,150 @@ namespace
     return presets;
   }
 
-  GuiState* getGuiState(HWND window)
+  GuiState *getGuiState(HWND window)
   {
-    return reinterpret_cast<GuiState*>(GetWindowLongPtr(window, GWLP_USERDATA));
+    return reinterpret_cast<GuiState *>(GetWindowLongPtr(window, GWLP_USERDATA));
   }
 
   void updateTrayTooltip(HWND window);
+
+  std::string getDisplayVersionText()
+  {
+    std::string version = NexPadAppVersion::kRawVersion;
+    if (version.size() > 1 && version[0] == 'v' && version[1] >= '0' && version[1] <= '9')
+    {
+      version.erase(0, 1);
+    }
+
+    return "v-" + version;
+  }
+
+  std::string buildBatteryDetailText(const CXBOXController::BatteryPresentationState &battery)
+  {
+    if (!battery.connected || battery.wired || !battery.available || battery.level == CXBOXController::BatteryLevelCategory::Unknown)
+    {
+      return battery.detailText;
+    }
+
+    return battery.charging ? "Battery: Charging" : "Battery";
+  }
+
+  std::string buildBatteryVisualKey(const CXBOXController::BatteryPresentationState &battery)
+  {
+    std::ostringstream key;
+    key << static_cast<int>(battery.connected) << ':'
+        << static_cast<int>(battery.available) << ':'
+        << static_cast<int>(battery.charging) << ':'
+        << static_cast<int>(battery.wired) << ':'
+        << static_cast<int>(battery.level) << ':'
+        << static_cast<int>(battery.filledSegments) << ':'
+        << static_cast<int>(battery.totalSegments);
+    return key.str();
+  }
+
+  COLORREF getBatteryFillColor(const GuiState *state, const CXBOXController::BatteryPresentationState &battery)
+  {
+    if (!battery.connected || !battery.available)
+    {
+      return state->mutedTextColor;
+    }
+
+    switch (battery.level)
+    {
+    case CXBOXController::BatteryLevelCategory::Empty:
+      return RGB(168, 62, 62);
+    case CXBOXController::BatteryLevelCategory::Low:
+      return RGB(214, 120, 58);
+    case CXBOXController::BatteryLevelCategory::Medium:
+      return RGB(214, 174, 58);
+    case CXBOXController::BatteryLevelCategory::High:
+      return RGB(74, 176, 96);
+    case CXBOXController::BatteryLevelCategory::Unknown:
+    default:
+      return state->mutedTextColor;
+    }
+  }
+
+  void drawBatteryBar(HWND window, const GuiState *state, HDC targetDc = NULL)
+  {
+    if (window == NULL || state == NULL)
+    {
+      return;
+    }
+
+    HDC dc = targetDc != NULL ? targetDc : GetDC(window);
+    if (dc == NULL)
+    {
+      return;
+    }
+
+    RECT rect = {};
+    GetClientRect(window, &rect);
+
+    HBRUSH backgroundBrush = CreateSolidBrush(state->panelColor);
+    FillRect(dc, &rect, backgroundBrush);
+    DeleteObject(backgroundBrush);
+
+    RECT barRect = rect;
+    barRect.right -= 10;
+    if (barRect.right > barRect.left)
+    {
+      RECT capRect = {barRect.right + 2, rect.top + 5, rect.right - 2, rect.bottom - 5};
+      if (capRect.right > capRect.left)
+      {
+        HBRUSH capBrush = CreateSolidBrush(state->mutedTextColor);
+        FillRect(dc, &capRect, capBrush);
+        DeleteObject(capBrush);
+      }
+
+      HPEN borderPen = CreatePen(PS_SOLID, 1, state->mutedTextColor);
+      HGDIOBJ oldPen = SelectObject(dc, borderPen);
+      HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(HOLLOW_BRUSH));
+      Rectangle(dc, barRect.left, barRect.top, barRect.right, barRect.bottom);
+
+      const CXBOXController::BatteryPresentationState battery = state->controller.GetBatteryPresentationState();
+      const int totalSegments = static_cast<int>(battery.totalSegments) > 1 ? static_cast<int>(battery.totalSegments) : 1;
+      const int segmentGap = 3;
+      const int innerPadding = 3;
+      RECT innerRect = {barRect.left + innerPadding, barRect.top + innerPadding, barRect.right - innerPadding, barRect.bottom - innerPadding};
+      const int availableWidth = innerRect.right - innerRect.left - ((totalSegments - 1) * segmentGap);
+
+      if (availableWidth > 0 && innerRect.bottom > innerRect.top)
+      {
+        const int segmentWidth = (availableWidth / totalSegments) > 1 ? (availableWidth / totalSegments) : 1;
+        const int filledSegments = static_cast<int>(battery.filledSegments) < totalSegments ? static_cast<int>(battery.filledSegments) : totalSegments;
+        const COLORREF fillColor = getBatteryFillColor(state, battery);
+
+        for (int index = 0; index < totalSegments; ++index)
+        {
+          RECT segmentRect = {};
+          segmentRect.left = innerRect.left + index * (segmentWidth + segmentGap);
+          segmentRect.right = segmentRect.left + segmentWidth;
+          if (index == totalSegments - 1)
+          {
+            segmentRect.right = innerRect.right;
+          }
+          segmentRect.top = innerRect.top;
+          segmentRect.bottom = innerRect.bottom;
+
+          const bool isFilled = battery.wired ? true : index < filledSegments;
+          const COLORREF segmentColor = isFilled ? fillColor : state->editBackgroundColor;
+          HBRUSH segmentBrush = CreateSolidBrush(segmentColor);
+          FillRect(dc, &segmentRect, segmentBrush);
+          DeleteObject(segmentBrush);
+        }
+      }
+
+      SelectObject(dc, oldBrush);
+      SelectObject(dc, oldPen);
+      DeleteObject(borderPen);
+    }
+
+    if (targetDc == NULL)
+    {
+      ReleaseDC(window, dc);
+    }
+  }
 
   void beginMouseTracking(HWND window)
   {
@@ -319,10 +464,40 @@ namespace
     return tab != NULL ? GetParent(tab) : NULL;
   }
 
+  LRESULT CALLBACK batteryBarSubclassProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR refData)
+  {
+    GuiState *state = reinterpret_cast<GuiState *>(refData);
+    if (!state)
+    {
+      return DefSubclassProc(window, message, wParam, lParam);
+    }
+
+    switch (message)
+    {
+    case WM_ERASEBKGND:
+      return 1;
+
+    case WM_PAINT:
+    {
+      PAINTSTRUCT paint = {};
+      HDC dc = BeginPaint(window, &paint);
+      drawBatteryBar(window, state, dc);
+      EndPaint(window, &paint);
+      return 0;
+    }
+
+    case WM_PRINTCLIENT:
+      drawBatteryBar(window, state, reinterpret_cast<HDC>(wParam));
+      return 0;
+    }
+
+    return DefSubclassProc(window, message, wParam, lParam);
+  }
+
   LRESULT CALLBACK pageSubclassProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR)
   {
     HWND mainWindow = getMainWindowFromPage(window);
-    GuiState* state = mainWindow != NULL ? getGuiState(mainWindow) : NULL;
+    GuiState *state = mainWindow != NULL ? getGuiState(mainWindow) : NULL;
 
     switch (message)
     {
@@ -418,7 +593,7 @@ namespace
 
   LRESULT CALLBACK buttonSubclassProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR refData)
   {
-    GuiState* state = reinterpret_cast<GuiState*>(refData);
+    GuiState *state = reinterpret_cast<GuiState *>(refData);
     if (!state)
     {
       return DefSubclassProc(window, message, wParam, lParam);
@@ -472,7 +647,7 @@ namespace
     return DefSubclassProc(window, message, wParam, lParam);
   }
 
-  void drawComboChrome(HWND window, const GuiState* state, HDC targetDc = NULL)
+  void drawComboChrome(HWND window, const GuiState *state, HDC targetDc = NULL)
   {
     if (!window || !state)
     {
@@ -537,11 +712,10 @@ namespace
     const int centerX = (buttonRect.left + buttonRect.right) / 2;
     const int centerY = (buttonRect.top + buttonRect.bottom) / 2;
     POINT triangle[3] =
-    {
-      { centerX - 4, centerY - 2 },
-      { centerX + 4, centerY - 2 },
-      { centerX, centerY + 3 }
-    };
+        {
+            {centerX - 4, centerY - 2},
+            {centerX + 4, centerY - 2},
+            {centerX, centerY + 3}};
     HBRUSH triangleBrush = CreateSolidBrush(arrowColor);
     SelectObject(dc, triangleBrush);
     Polygon(dc, triangle, 3);
@@ -612,7 +786,7 @@ namespace
     return text;
   }
 
-  HWND resolveComboHandle(const DRAWITEMSTRUCT* drawItem, const GuiState* state)
+  HWND resolveComboHandle(const DRAWITEMSTRUCT *drawItem, const GuiState *state)
   {
     if (!drawItem || !state)
     {
@@ -630,12 +804,11 @@ namespace
     }
 
     const HWND combos[] =
-    {
-      state->speedCombo,
-      state->presetList,
-      state->mappingKeyCombo,
-      state->mappingValueCombo
-    };
+        {
+            state->speedCombo,
+            state->presetList,
+            state->mappingKeyCombo,
+            state->mappingValueCombo};
 
     for (HWND combo : combos)
     {
@@ -655,7 +828,7 @@ namespace
     return NULL;
   }
 
-  void drawThemedComboItem(const DRAWITEMSTRUCT* drawItem, const GuiState* state)
+  void drawThemedComboItem(const DRAWITEMSTRUCT *drawItem, const GuiState *state)
   {
     if (!drawItem || !state)
     {
@@ -714,7 +887,7 @@ namespace
 
   LRESULT CALLBACK comboSubclassProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR refData)
   {
-    GuiState* state = reinterpret_cast<GuiState*>(refData);
+    GuiState *state = reinterpret_cast<GuiState *>(refData);
     if (!state)
     {
       return DefSubclassProc(window, message, wParam, lParam);
@@ -753,26 +926,26 @@ namespace
 
     case WM_SETFOCUS:
     case WM_KILLFOCUS:
-      {
-        const LRESULT result = DefSubclassProc(window, message, wParam, lParam);
-        InvalidateRect(window, NULL, TRUE);
-        return result;
-      }
+    {
+      const LRESULT result = DefSubclassProc(window, message, wParam, lParam);
+      InvalidateRect(window, NULL, TRUE);
+      return result;
+    }
 
     case WM_PAINT:
     case WM_NCPAINT:
-      {
-        const LRESULT result = DefSubclassProc(window, message, wParam, lParam);
-        drawComboChrome(window, state);
-        return result;
-      }
+    {
+      const LRESULT result = DefSubclassProc(window, message, wParam, lParam);
+      drawComboChrome(window, state);
+      return result;
+    }
 
     case WM_PRINTCLIENT:
-      {
-        const LRESULT result = DefSubclassProc(window, message, wParam, lParam);
-        drawComboChrome(window, state, reinterpret_cast<HDC>(wParam));
-        return result;
-      }
+    {
+      const LRESULT result = DefSubclassProc(window, message, wParam, lParam);
+      drawComboChrome(window, state, reinterpret_cast<HDC>(wParam));
+      return result;
+    }
     }
 
     return DefSubclassProc(window, message, wParam, lParam);
@@ -780,7 +953,7 @@ namespace
 
   LRESULT CALLBACK comboListSubclassProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR refData)
   {
-    GuiState* state = reinterpret_cast<GuiState*>(refData);
+    GuiState *state = reinterpret_cast<GuiState *>(refData);
     if (!state)
     {
       return DefSubclassProc(window, message, wParam, lParam);
@@ -809,25 +982,25 @@ namespace
       break;
 
     case WM_PAINT:
+    {
+      const LRESULT result = DefSubclassProc(window, message, wParam, lParam);
+      HDC dc = GetWindowDC(window);
+      if (dc != NULL)
       {
-        const LRESULT result = DefSubclassProc(window, message, wParam, lParam);
-        HDC dc = GetWindowDC(window);
-        if (dc != NULL)
-        {
-          RECT rect;
-          GetWindowRect(window, &rect);
-          OffsetRect(&rect, -rect.left, -rect.top);
-          HPEN pen = CreatePen(PS_SOLID, 1, state->mutedTextColor);
-          HGDIOBJ oldPen = SelectObject(dc, pen);
-          HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(HOLLOW_BRUSH));
-          Rectangle(dc, rect.left, rect.top, rect.right, rect.bottom);
-          SelectObject(dc, oldBrush);
-          SelectObject(dc, oldPen);
-          DeleteObject(pen);
-          ReleaseDC(window, dc);
-        }
-        return result;
+        RECT rect;
+        GetWindowRect(window, &rect);
+        OffsetRect(&rect, -rect.left, -rect.top);
+        HPEN pen = CreatePen(PS_SOLID, 1, state->mutedTextColor);
+        HGDIOBJ oldPen = SelectObject(dc, pen);
+        HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(HOLLOW_BRUSH));
+        Rectangle(dc, rect.left, rect.top, rect.right, rect.bottom);
+        SelectObject(dc, oldBrush);
+        SelectObject(dc, oldPen);
+        DeleteObject(pen);
+        ReleaseDC(window, dc);
       }
+      return result;
+    }
     }
 
     return DefSubclassProc(window, message, wParam, lParam);
@@ -835,7 +1008,7 @@ namespace
 
   LRESULT CALLBACK tabSubclassProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR refData)
   {
-    GuiState* state = reinterpret_cast<GuiState*>(refData);
+    GuiState *state = reinterpret_cast<GuiState *>(refData);
     if (!state)
     {
       return DefSubclassProc(window, message, wParam, lParam);
@@ -854,19 +1027,19 @@ namespace
       break;
 
     case WM_MOUSEMOVE:
+    {
+      beginMouseTracking(window);
+      TCHITTESTINFO hitTest = {};
+      hitTest.pt.x = GET_X_LPARAM(lParam);
+      hitTest.pt.y = GET_Y_LPARAM(lParam);
+      const int hotIndex = static_cast<int>(SendMessage(window, TCM_HITTEST, 0, reinterpret_cast<LPARAM>(&hitTest)));
+      if (state->hotTabIndex != hotIndex)
       {
-        beginMouseTracking(window);
-        TCHITTESTINFO hitTest = {};
-        hitTest.pt.x = GET_X_LPARAM(lParam);
-        hitTest.pt.y = GET_Y_LPARAM(lParam);
-        const int hotIndex = static_cast<int>(SendMessage(window, TCM_HITTEST, 0, reinterpret_cast<LPARAM>(&hitTest)));
-        if (state->hotTabIndex != hotIndex)
-        {
-          state->hotTabIndex = hotIndex;
-          InvalidateRect(window, NULL, TRUE);
-        }
+        state->hotTabIndex = hotIndex;
+        InvalidateRect(window, NULL, TRUE);
       }
-      break;
+    }
+    break;
 
     case WM_MOUSELEAVE:
       if (state->hotTabIndex != -1)
@@ -880,7 +1053,7 @@ namespace
     return DefSubclassProc(window, message, wParam, lParam);
   }
 
-  void destroyThemeResources(GuiState* state)
+  void destroyThemeResources(GuiState *state)
   {
     if (!state)
     {
@@ -909,7 +1082,7 @@ namespace
     }
   }
 
-  void applyThemePalette(GuiState* state)
+  void applyThemePalette(GuiState *state)
   {
     if (!state)
     {
@@ -933,7 +1106,7 @@ namespace
     state->buttonBrush = CreateSolidBrush(state->buttonColor);
   }
 
-  void applyNativeTabPalette(HWND tab, const GuiState* state)
+  void applyNativeTabPalette(HWND tab, const GuiState *state)
   {
     if (tab == NULL || state == NULL)
     {
@@ -946,7 +1119,7 @@ namespace
 
   void refreshTheme(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -980,6 +1153,7 @@ namespace
     invalidateIfNotNull(state->presetDeleteButton);
     invalidateIfNotNull(state->importButton);
     invalidateIfNotNull(state->exportButton);
+    invalidateIfNotNull(state->batteryBar);
     invalidateIfNotNull(state->applyMappingButton);
     invalidateIfNotNull(state->speedCombo);
     invalidateIfNotNull(state->presetList);
@@ -1025,7 +1199,7 @@ namespace
       {
         ownerWindow = getMainWindowFromPage(ownerWindow);
       }
-      GuiState* state = ownerWindow != NULL ? getGuiState(ownerWindow) : NULL;
+      GuiState *state = ownerWindow != NULL ? getGuiState(ownerWindow) : NULL;
       if (state != NULL)
       {
         SetWindowSubclass(info.hwndList, comboListSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
@@ -1045,7 +1219,7 @@ namespace
     }
   }
 
-  void drawThemedButton(const DRAWITEMSTRUCT* drawItem, const GuiState* state)
+  void drawThemedButton(const DRAWITEMSTRUCT *drawItem, const GuiState *state)
   {
     if (!drawItem || !state)
     {
@@ -1139,7 +1313,7 @@ namespace
     }
   }
 
-  void drawThemedTabItem(const DRAWITEMSTRUCT* drawItem, const GuiState* state)
+  void drawThemedTabItem(const DRAWITEMSTRUCT *drawItem, const GuiState *state)
   {
     if (!drawItem || !state)
     {
@@ -1222,7 +1396,7 @@ namespace
     }
   }
 
-  LRESULT handleTabCustomDraw(const NMCUSTOMDRAW* customDraw, const GuiState* state)
+  LRESULT handleTabCustomDraw(const NMCUSTOMDRAW *customDraw, const GuiState *state)
   {
     if (!customDraw || !state)
     {
@@ -1232,102 +1406,102 @@ namespace
     switch (customDraw->dwDrawStage)
     {
     case CDDS_PREPAINT:
-      {
-        RECT clientRect;
-        GetClientRect(customDraw->hdr.hwndFrom, &clientRect);
-        HBRUSH backgroundBrush = CreateSolidBrush(state->panelColor);
-        FillRect(customDraw->hdc, &clientRect, backgroundBrush);
-        DeleteObject(backgroundBrush);
+    {
+      RECT clientRect;
+      GetClientRect(customDraw->hdr.hwndFrom, &clientRect);
+      HBRUSH backgroundBrush = CreateSolidBrush(state->panelColor);
+      FillRect(customDraw->hdc, &clientRect, backgroundBrush);
+      DeleteObject(backgroundBrush);
 
-        HPEN stripPen = CreatePen(PS_SOLID, 1, state->mutedTextColor);
-        HGDIOBJ oldPen = SelectObject(customDraw->hdc, stripPen);
-        MoveToEx(customDraw->hdc, clientRect.left, clientRect.bottom - 1, NULL);
-        LineTo(customDraw->hdc, clientRect.right, clientRect.bottom - 1);
-        SelectObject(customDraw->hdc, oldPen);
-        DeleteObject(stripPen);
-      }
+      HPEN stripPen = CreatePen(PS_SOLID, 1, state->mutedTextColor);
+      HGDIOBJ oldPen = SelectObject(customDraw->hdc, stripPen);
+      MoveToEx(customDraw->hdc, clientRect.left, clientRect.bottom - 1, NULL);
+      LineTo(customDraw->hdc, clientRect.right, clientRect.bottom - 1);
+      SelectObject(customDraw->hdc, oldPen);
+      DeleteObject(stripPen);
+    }
       return CDRF_NOTIFYITEMDRAW;
 
     case CDDS_ITEMPREPAINT:
+    {
+      const int tabIndex = static_cast<int>(customDraw->dwItemSpec);
+      RECT rect;
+      TabCtrl_GetItemRect(customDraw->hdr.hwndFrom, tabIndex, &rect);
+
+      TCITEMA item = {};
+      char text[128] = {};
+      item.mask = TCIF_TEXT;
+      item.pszText = text;
+      item.cchTextMax = static_cast<int>(sizeof(text));
+      SendMessageA(customDraw->hdr.hwndFrom, TCM_GETITEMA, tabIndex, reinterpret_cast<LPARAM>(&item));
+
+      const bool selected = (customDraw->uItemState & CDIS_SELECTED) != 0;
+      const bool hot = state->hotTabIndex == tabIndex;
+      COLORREF fillColor = state->panelColor;
+      COLORREF borderColor = state->mutedTextColor;
+      if (selected)
       {
-        const int tabIndex = static_cast<int>(customDraw->dwItemSpec);
-        RECT rect;
-        TabCtrl_GetItemRect(customDraw->hdr.hwndFrom, tabIndex, &rect);
-
-        TCITEMA item = {};
-        char text[128] = {};
-        item.mask = TCIF_TEXT;
-        item.pszText = text;
-        item.cchTextMax = static_cast<int>(sizeof(text));
-        SendMessageA(customDraw->hdr.hwndFrom, TCM_GETITEMA, tabIndex, reinterpret_cast<LPARAM>(&item));
-
-        const bool selected = (customDraw->uItemState & CDIS_SELECTED) != 0;
-        const bool hot = state->hotTabIndex == tabIndex;
-        COLORREF fillColor = state->panelColor;
-        COLORREF borderColor = state->mutedTextColor;
-        if (selected)
-        {
-          borderColor = state->textColor;
-        }
-        else if (hot)
-        {
-          borderColor = RGB(220, 220, 220);
-        }
-        HBRUSH brush = CreateSolidBrush(fillColor);
-        HPEN pen = CreatePen(PS_SOLID, 1, borderColor);
-        HGDIOBJ oldPen = SelectObject(customDraw->hdc, pen);
-        HGDIOBJ oldBrush = SelectObject(customDraw->hdc, brush);
-        RoundRect(customDraw->hdc, rect.left, rect.top + (selected ? 0 : 3), rect.right, rect.bottom + 2, 8, 8);
-        SelectObject(customDraw->hdc, oldBrush);
-        SelectObject(customDraw->hdc, oldPen);
-        DeleteObject(brush);
-        DeleteObject(pen);
-
-        if (selected)
-        {
-          RECT coverRect = rect;
-          coverRect.top = rect.bottom - 2;
-          coverRect.bottom = rect.bottom + 1;
-          HBRUSH coverBrush = CreateSolidBrush(state->panelColor);
-          FillRect(customDraw->hdc, &coverRect, coverBrush);
-          DeleteObject(coverBrush);
-        }
-
-        HGDIOBJ oldFont = NULL;
-        if (state->font != NULL)
-        {
-          oldFont = SelectObject(customDraw->hdc, state->font);
-        }
-        SetBkMode(customDraw->hdc, TRANSPARENT);
-        SetTextColor(customDraw->hdc, state->textColor);
-        rect.left += 8;
-        rect.right -= 8;
-        if (selected)
-        {
-          rect.bottom -= 2;
-        }
-        DrawTextA(customDraw->hdc, text, -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        if (selected)
-        {
-          RECT accentRect = rect;
-          accentRect.top = customDraw->rc.top;
-          accentRect.bottom = accentRect.top + 3;
-          HBRUSH accentBrush = CreateSolidBrush(state->textColor);
-          FillRect(customDraw->hdc, &accentRect, accentBrush);
-          DeleteObject(accentBrush);
-        }
-        if (oldFont != NULL)
-        {
-          SelectObject(customDraw->hdc, oldFont);
-        }
-        return CDRF_SKIPDEFAULT;
+        borderColor = state->textColor;
       }
+      else if (hot)
+      {
+        borderColor = RGB(220, 220, 220);
+      }
+      HBRUSH brush = CreateSolidBrush(fillColor);
+      HPEN pen = CreatePen(PS_SOLID, 1, borderColor);
+      HGDIOBJ oldPen = SelectObject(customDraw->hdc, pen);
+      HGDIOBJ oldBrush = SelectObject(customDraw->hdc, brush);
+      RoundRect(customDraw->hdc, rect.left, rect.top + (selected ? 0 : 3), rect.right, rect.bottom + 2, 8, 8);
+      SelectObject(customDraw->hdc, oldBrush);
+      SelectObject(customDraw->hdc, oldPen);
+      DeleteObject(brush);
+      DeleteObject(pen);
+
+      if (selected)
+      {
+        RECT coverRect = rect;
+        coverRect.top = rect.bottom - 2;
+        coverRect.bottom = rect.bottom + 1;
+        HBRUSH coverBrush = CreateSolidBrush(state->panelColor);
+        FillRect(customDraw->hdc, &coverRect, coverBrush);
+        DeleteObject(coverBrush);
+      }
+
+      HGDIOBJ oldFont = NULL;
+      if (state->font != NULL)
+      {
+        oldFont = SelectObject(customDraw->hdc, state->font);
+      }
+      SetBkMode(customDraw->hdc, TRANSPARENT);
+      SetTextColor(customDraw->hdc, state->textColor);
+      rect.left += 8;
+      rect.right -= 8;
+      if (selected)
+      {
+        rect.bottom -= 2;
+      }
+      DrawTextA(customDraw->hdc, text, -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+      if (selected)
+      {
+        RECT accentRect = rect;
+        accentRect.top = customDraw->rc.top;
+        accentRect.bottom = accentRect.top + 3;
+        HBRUSH accentBrush = CreateSolidBrush(state->textColor);
+        FillRect(customDraw->hdc, &accentRect, accentBrush);
+        DeleteObject(accentBrush);
+      }
+      if (oldFont != NULL)
+      {
+        SelectObject(customDraw->hdc, oldFont);
+      }
+      return CDRF_SKIPDEFAULT;
+    }
     }
 
     return CDRF_DODEFAULT;
   }
 
-  void setTextIfChanged(HWND control, std::string& cache, const std::string& value)
+  void setTextIfChanged(HWND control, std::string &cache, const std::string &value)
   {
     if (control == NULL || cache == value)
     {
@@ -1376,46 +1550,42 @@ namespace
 
   std::vector<std::pair<DWORD, std::string>> buildGamepadValueOptions()
   {
-    return
-    {
-      { 0x0000, "0x0000 - None" },
-      { 0x0001, "0x0001 - DPad Up" },
-      { 0x0002, "0x0002 - DPad Down" },
-      { 0x0004, "0x0004 - DPad Left" },
-      { 0x0008, "0x0008 - DPad Right" },
-      { 0x0010, "0x0010 - Start / Options" },
-      { 0x0020, "0x0020 - Back / Share" },
-      { 0x0040, "0x0040 - Left Thumb" },
-      { 0x0080, "0x0080 - Right Thumb" },
-      { 0x0100, "0x0100 - Left Shoulder" },
-      { 0x0200, "0x0200 - Right Shoulder" },
-      { 0x0300, "0x0300 - Left + Right Shoulder" },
-      { 0x1000, "0x1000 - A / Cross" },
-      { 0x2000, "0x2000 - B / Circle" },
-      { 0x4000, "0x4000 - X / Square" },
-      { 0x8000, "0x8000 - Y / Triangle" }
-    };
+    return {
+        {0x0000, "0x0000 - None"},
+        {0x0001, "0x0001 - DPad Up"},
+        {0x0002, "0x0002 - DPad Down"},
+        {0x0004, "0x0004 - DPad Left"},
+        {0x0008, "0x0008 - DPad Right"},
+        {0x0010, "0x0010 - Start / Options"},
+        {0x0020, "0x0020 - Back / Share"},
+        {0x0040, "0x0040 - Left Thumb"},
+        {0x0080, "0x0080 - Right Thumb"},
+        {0x0100, "0x0100 - Left Shoulder"},
+        {0x0200, "0x0200 - Right Shoulder"},
+        {0x0300, "0x0300 - Left + Right Shoulder"},
+        {0x1000, "0x1000 - A / Cross"},
+        {0x2000, "0x2000 - B / Circle"},
+        {0x4000, "0x4000 - X / Square"},
+        {0x8000, "0x8000 - Y / Triangle"}};
   }
 
   std::vector<std::pair<DWORD, std::string>> buildKeyboardValueOptions()
   {
-    return
-    {
-      { 0x0000, "0x0000 - None" },
-      { 0x08, "0x08 - Backspace" },
-      { 0x09, "0x09 - Tab" },
-      { 0x11, "0x11 - Ctrl" },
-      { 0x12, "0x12 - Alt" },
-      { 0x1B, "0x1B - Escape" },
-      { 0x20, "0x20 - Space" },
-      { 0x25, "0x25 - Left Arrow" },
-      { 0x26, "0x26 - Up Arrow" },
-      { 0x27, "0x27 - Right Arrow" },
-      { 0x28, "0x28 - Down Arrow" },
-      { 0x86, "0x86 - F23" },
-      { 0x87, "0x87 - F24" },
-      { 0xA8, "0xA8 - Browser Back" }
-    };
+    return {
+        {0x0000, "0x0000 - None"},
+        {0x08, "0x08 - Backspace"},
+        {0x09, "0x09 - Tab"},
+        {0x11, "0x11 - Ctrl"},
+        {0x12, "0x12 - Alt"},
+        {0x1B, "0x1B - Escape"},
+        {0x20, "0x20 - Space"},
+        {0x25, "0x25 - Left Arrow"},
+        {0x26, "0x26 - Up Arrow"},
+        {0x27, "0x27 - Right Arrow"},
+        {0x28, "0x28 - Down Arrow"},
+        {0x86, "0x86 - F23"},
+        {0x87, "0x87 - F24"},
+        {0xA8, "0xA8 - Browser Back"}};
   }
 
   std::string buildMappingsHelpText()
@@ -1441,7 +1611,7 @@ namespace
     return stream.str();
   }
 
-  bool loadTextFile(const char* path, std::string& content)
+  bool loadTextFile(const char *path, std::string &content)
   {
     std::ifstream input(path, std::ios::in | std::ios::binary);
     if (!input)
@@ -1455,7 +1625,7 @@ namespace
     return true;
   }
 
-  bool saveTextFile(const char* path, const std::string& content)
+  bool saveTextFile(const char *path, const std::string &content)
   {
     std::ofstream output(path, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!output)
@@ -1492,7 +1662,7 @@ namespace
 
   void ensureTrayIcon(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state || state->trayAdded)
     {
       return;
@@ -1513,7 +1683,7 @@ namespace
 
   void removeTrayIcon(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state || !state->trayAdded)
     {
       return;
@@ -1555,9 +1725,9 @@ namespace
     DestroyMenu(menu);
   }
 
-  void appendOutput(HWND window, const std::string& message)
+  void appendOutput(HWND window, const std::string &message)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state || state->outputInfo == NULL)
     {
       return;
@@ -1571,7 +1741,7 @@ namespace
 
   void updateTrayTooltip(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state || !state->trayAdded)
     {
       return;
@@ -1598,7 +1768,7 @@ namespace
 
   void updateStatusControls(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1607,12 +1777,20 @@ namespace
     setTextIfChanged(state->statusText, state->cachedStatusText, std::string("Status: ") + (state->nexPad.isDisabled() ? "Disabled" : "Enabled"));
     setTextIfChanged(state->controllerText, state->cachedControllerText, std::string("Controller: ") + (state->controller.GetLastConnectionState() ? "Connected" : "Disconnected"));
     setTextIfChanged(state->controllerTypeText, state->cachedControllerTypeText, "Detected type: " + state->controller.GetControllerTypeName());
-    setTextIfChanged(state->batteryText, state->cachedBatteryText, state->controller.GetBatteryStatus());
+    const CXBOXController::BatteryPresentationState battery = state->controller.GetBatteryPresentationState();
+    setTextIfChanged(state->batteryText, state->cachedBatteryText, buildBatteryDetailText(battery));
+
+    const std::string batteryVisualKey = buildBatteryVisualKey(battery);
+    if (state->cachedBatteryVisualKey != batteryVisualKey)
+    {
+      state->cachedBatteryVisualKey = batteryVisualKey;
+      invalidateIfNotNull(state->batteryBar);
+    }
 
     std::ostringstream speedStream;
     speedStream << std::fixed << std::setprecision(3)
                 << "Current speed: " << state->nexPad.getCurrentSpeed();
-    const std::vector<std::string>& speedNames = state->nexPad.getSpeedNames();
+    const std::vector<std::string> &speedNames = state->nexPad.getSpeedNames();
     const unsigned int speedIndex = state->nexPad.getSpeedIndex();
     if (speedIndex < speedNames.size())
     {
@@ -1626,25 +1804,26 @@ namespace
     setTextIfChanged(state->scrollText, state->cachedScrollText, scrollStream.str());
 
     setTextIfChanged(state->configText, state->cachedConfigText, "Config: " + state->nexPad.getConfigPath());
+    setTextIfChanged(state->versionText, state->cachedVersionText, getDisplayVersionText());
     setTextIfChanged(state->toggleButton, state->cachedToggleButtonText, state->nexPad.isDisabled() ? "Enable NexPad" : "Disable NexPad");
     updateTrayTooltip(window);
   }
 
   void populateSettingsControls(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
     }
 
     SendMessage(state->speedCombo, CB_RESETCONTENT, 0, 0);
-    const std::vector<float>& speeds = state->nexPad.getSpeeds();
-    const std::vector<std::string>& speedNames = state->nexPad.getSpeedNames();
+    const std::vector<float> &speeds = state->nexPad.getSpeeds();
+    const std::vector<std::string> &speedNames = state->nexPad.getSpeedNames();
     for (size_t index = 0; index < speeds.size(); ++index)
     {
       std::ostringstream entry;
-      const std::string& name = index < speedNames.size() ? speedNames[index] : std::to_string(index + 1);
+      const std::string &name = index < speedNames.size() ? speedNames[index] : std::to_string(index + 1);
       entry << name << " (" << std::fixed << std::setprecision(3) << speeds[index] << ")";
       SendMessageA(state->speedCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(entry.str().c_str()));
     }
@@ -1669,7 +1848,7 @@ namespace
 
   void populatePresetList(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1677,7 +1856,7 @@ namespace
 
     SendMessage(state->presetList, CB_RESETCONTENT, 0, 0);
     const std::vector<std::string> presets = enumeratePresetFiles();
-    for (const std::string& preset : presets)
+    for (const std::string &preset : presets)
     {
       SendMessageA(state->presetList, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(preset.c_str()));
     }
@@ -1693,7 +1872,7 @@ namespace
 
   void populateMappingEditor(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1701,7 +1880,7 @@ namespace
 
     SendMessage(state->mappingKeyCombo, CB_RESETCONTENT, 0, 0);
     const std::vector<NexPad::MappingEntry> mappings = state->nexPad.getMappingEntries();
-    for (const NexPad::MappingEntry& mapping : mappings)
+    for (const NexPad::MappingEntry &mapping : mappings)
     {
       std::string label = mapping.key + " - " + mapping.description;
       SendMessageA(state->mappingKeyCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(label.c_str()));
@@ -1716,7 +1895,7 @@ namespace
     refreshComboDisplay(state->mappingKeyCombo);
   }
 
-  DWORD parseMappingValueText(const std::string& text)
+  DWORD parseMappingValueText(const std::string &text)
   {
     const size_t delimiter = text.find(' ');
     const std::string numeric = delimiter == std::string::npos ? text : text.substr(0, delimiter);
@@ -1725,7 +1904,7 @@ namespace
 
   void updateSelectedMappingControls(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1738,7 +1917,7 @@ namespace
       return;
     }
 
-    const NexPad::MappingEntry& mapping = mappings[static_cast<size_t>(selectedIndex)];
+    const NexPad::MappingEntry &mapping = mappings[static_cast<size_t>(selectedIndex)];
     SetWindowTextA(state->mappingDescription, (mapping.description + (mapping.keyboardValue ? " (keyboard value)" : " (gamepad combo value)")).c_str());
 
     SendMessage(state->mappingValueCombo, CB_RESETCONTENT, 0, 0);
@@ -1768,7 +1947,7 @@ namespace
 
   void showSelectedTab(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1782,7 +1961,7 @@ namespace
 
   void layoutControls(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1811,16 +1990,28 @@ namespace
     MoveWindow(state->statusText, margin, margin, pageWidth - margin * 2 - buttonWidth - 8, labelHeight, TRUE);
     MoveWindow(state->toggleButton, pageWidth - margin - buttonWidth, margin - 2, buttonWidth, 28, TRUE);
     MoveWindow(state->controllerText, margin, margin + 28, pageWidth - margin * 2, labelHeight, TRUE);
+    int batteryBarWidth = pageWidth / 3;
+    if (batteryBarWidth < 120)
+    {
+      batteryBarWidth = 120;
+    }
+    else if (batteryBarWidth > 180)
+    {
+      batteryBarWidth = 180;
+    }
     MoveWindow(state->controllerTypeText, margin, margin + 56, pageWidth - margin * 2, labelHeight, TRUE);
-    MoveWindow(state->batteryText, margin, margin + 84, pageWidth - margin * 2, labelHeight, TRUE);
+    MoveWindow(state->batteryText, margin, margin + 84, pageWidth - margin * 2 - batteryBarWidth - gap, labelHeight, TRUE);
+    MoveWindow(state->batteryBar, pageWidth - margin - batteryBarWidth, margin + 86, batteryBarWidth, 18, TRUE);
     MoveWindow(state->speedText, margin, margin + 112, pageWidth - margin * 2, labelHeight, TRUE);
     MoveWindow(state->scrollText, margin, margin + 140, pageWidth - margin * 2, labelHeight, TRUE);
     MoveWindow(state->configText, margin, margin + 168, pageWidth - margin * 2, labelHeight, TRUE);
 
     const int textTop = margin + 200;
-    const int textHeight = (pageHeight - textTop - margin * 2) / 2;
+    const int footerHeight = 20;
+    const int textHeight = (pageHeight - textTop - margin * 2 - footerHeight) / 2;
     MoveWindow(state->startupInfo, margin, textTop, pageWidth - margin * 2, textHeight, TRUE);
-    MoveWindow(state->outputInfo, margin, textTop + textHeight + margin, pageWidth - margin * 2, pageHeight - textTop - textHeight - margin * 2, TRUE);
+    MoveWindow(state->outputInfo, margin, textTop + textHeight + margin, pageWidth - margin * 2, pageHeight - textTop - textHeight - margin * 2 - footerHeight, TRUE);
+    MoveWindow(state->versionText, pageWidth - margin - 120, pageHeight - margin - footerHeight + 2, 120, labelHeight, TRUE);
     applyEditPadding(state->startupInfo);
     applyEditPadding(state->outputInfo);
 
@@ -1869,7 +2060,7 @@ namespace
 
   void applySettings(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1917,7 +2108,7 @@ namespace
 
   void reloadConfig(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1931,7 +2122,7 @@ namespace
 
   void saveSettings(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -1946,7 +2137,7 @@ namespace
 
   std::string getSelectedPresetName(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return std::string();
@@ -1971,7 +2162,7 @@ namespace
 
   void savePresetToList(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -2005,7 +2196,7 @@ namespace
 
   void loadSelectedPreset(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -2055,7 +2246,7 @@ namespace
 
   void applySelectedMapping(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -2087,7 +2278,7 @@ namespace
 
   void importPreset(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -2132,7 +2323,7 @@ namespace
 
   void exportPreset(HWND window)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
     if (!state)
     {
       return;
@@ -2164,203 +2355,206 @@ namespace
 
   LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
   {
-    GuiState* state = getGuiState(window);
+    GuiState *state = getGuiState(window);
 
     switch (message)
     {
     case WM_CREATE:
+    {
+      CREATESTRUCT *createStruct = reinterpret_cast<CREATESTRUCT *>(lParam);
+      state = reinterpret_cast<GuiState *>(createStruct->lpCreateParams);
+      SetWindowLongPtr(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
+
+      state->font = reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+      state->tab = CreateWindowExA(0, WC_TABCONTROLA, "", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_OWNERDRAWFIXED | TCS_FIXEDWIDTH,
+                                   0, 0, 0, 0, window, reinterpret_cast<HMENU>(IDC_MAIN_TAB), createStruct->hInstance, NULL);
+      SetWindowSubclass(state->tab, tabSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      state->statusPage = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                          0, 0, 0, 0, state->tab, NULL, createStruct->hInstance, NULL);
+      state->settingsPage = CreateWindowExA(0, "STATIC", "", WS_CHILD,
+                                            0, 0, 0, 0, state->tab, NULL, createStruct->hInstance, NULL);
+      state->mappingsPage = CreateWindowExA(0, "STATIC", "", WS_CHILD,
+                                            0, 0, 0, 0, state->tab, NULL, createStruct->hInstance, NULL);
+      SetWindowSubclass(state->statusPage, pageSubclassProc, 1, 0);
+      SetWindowSubclass(state->settingsPage, pageSubclassProc, 1, 0);
+      SetWindowSubclass(state->mappingsPage, pageSubclassProc, 1, 0);
+
+      state->statusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                          0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_STATUS_TEXT), createStruct->hInstance, NULL);
+      state->controllerText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                              0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_CONTROLLER_TEXT), createStruct->hInstance, NULL);
+      state->controllerTypeText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                                  0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_CONTROLLER_TYPE_TEXT), createStruct->hInstance, NULL);
+      state->batteryText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_BATTERY_TEXT), createStruct->hInstance, NULL);
+      state->batteryBar = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                          0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_BATTERY_BAR), createStruct->hInstance, NULL);
+      state->speedText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                         0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_SPEED_TEXT), createStruct->hInstance, NULL);
+      state->scrollText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                          0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_SCROLL_TEXT), createStruct->hInstance, NULL);
+      state->configText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                          0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_CONFIG_TEXT), createStruct->hInstance, NULL);
+      state->versionText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_RIGHT,
+                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_VERSION_TEXT), createStruct->hInstance, NULL);
+      state->toggleButton = CreateWindowExA(0, "BUTTON", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                            0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_TOGGLE_BUTTON), createStruct->hInstance, NULL);
+      state->startupInfo = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_STARTUP_INFO), createStruct->hInstance, NULL);
+      state->outputInfo = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+                                          0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_OUTPUT_INFO), createStruct->hInstance, NULL);
+
+      state->speedLabel = CreateWindowExA(0, "STATIC", "Speed preset", WS_CHILD | WS_VISIBLE,
+                                          12, 12, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
+      state->speedCombo = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
+                                          0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SPEED_COMBO), createStruct->hInstance, NULL);
+      state->scrollLabel = CreateWindowExA(0, "STATIC", "Scroll speed", WS_CHILD | WS_VISIBLE,
+                                           12, 68, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
+      state->scrollEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
+                                          0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SCROLL_EDIT), createStruct->hInstance, NULL);
+      state->touchpadSpeedLabel = CreateWindowExA(0, "STATIC", "Touchpad cursor speed", WS_CHILD | WS_VISIBLE,
+                                                  12, 104, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
+      state->touchpadSpeedEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
+                                                 0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_SPEED_EDIT), createStruct->hInstance, NULL);
+      state->touchpadDeadZoneLabel = CreateWindowExA(0, "STATIC", "Touchpad gesture dead zone", WS_CHILD | WS_VISIBLE,
+                                                     12, 160, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
+      state->touchpadDeadZoneEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
+                                                    0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_DEAD_ZONE_EDIT), createStruct->hInstance, NULL);
+      state->touchpadCheck = CreateWindowExA(0, "BUTTON", "Enable DualSense touchpad gestures", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                             0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_CHECK), createStruct->hInstance, NULL);
+      state->swapCheck = CreateWindowExA(0, "BUTTON", "Swap thumbsticks", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                         0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SWAP_CHECK), createStruct->hInstance, NULL);
+      state->presetListLabel = CreateWindowExA(0, "STATIC", "Preset list", WS_CHILD | WS_VISIBLE,
+                                               12, 292, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
+      state->presetList = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
+                                          0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_LIST), createStruct->hInstance, NULL);
+      state->presetNameLabel = CreateWindowExA(0, "STATIC", "Preset name", WS_CHILD | WS_VISIBLE,
+                                               284, 292, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
+      state->presetNameEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
+                                              0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_NAME_EDIT), createStruct->hInstance, NULL);
+      state->applyButton = CreateWindowExA(0, "BUTTON", "Apply", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                           0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_APPLY_BUTTON), createStruct->hInstance, NULL);
+      state->saveButton = CreateWindowExA(0, "BUTTON", "Save to config", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                          0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SAVE_BUTTON), createStruct->hInstance, NULL);
+      state->reloadButton = CreateWindowExA(0, "BUTTON", "Reload config", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_RELOAD_BUTTON), createStruct->hInstance, NULL);
+      state->presetRefreshButton = CreateWindowExA(0, "BUTTON", "Refresh list", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                                   0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_REFRESH_BUTTON), createStruct->hInstance, NULL);
+      state->presetSaveButton = CreateWindowExA(0, "BUTTON", "Save preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                                0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_SAVE_BUTTON), createStruct->hInstance, NULL);
+      state->presetDeleteButton = CreateWindowExA(0, "BUTTON", "Delete preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                                  0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_DELETE_BUTTON), createStruct->hInstance, NULL);
+      state->importButton = CreateWindowExA(0, "BUTTON", "Import preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_IMPORT_BUTTON), createStruct->hInstance, NULL);
+      state->exportButton = CreateWindowExA(0, "BUTTON", "Export preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_EXPORT_BUTTON), createStruct->hInstance, NULL);
+      state->settingsNote = CreateWindowExA(0, "STATIC", buildPresetHelpText().c_str(), WS_CHILD | WS_VISIBLE,
+                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SETTINGS_NOTE), createStruct->hInstance, NULL);
+      state->mappingsHelp = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+                                            0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_MAPPINGS_HELP), createStruct->hInstance, NULL);
+      state->mappingKeyCombo = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
+                                               0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_MAPPING_KEY_COMBO), createStruct->hInstance, NULL);
+      state->mappingValueCombo = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWN | (kUseNativeComboPrototype ? 0 : (CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
+                                                 0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_MAPPING_VALUE_COMBO), createStruct->hInstance, NULL);
+      state->mappingDescription = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                                  0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_MAPPING_DESC_TEXT), createStruct->hInstance, NULL);
+      state->applyMappingButton = CreateWindowExA(0, "BUTTON", "Apply mapping", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                                  0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_APPLY_MAPPING_BUTTON), createStruct->hInstance, NULL);
+
+      TCITEMA tabItem = {};
+      tabItem.mask = TCIF_TEXT;
+      tabItem.pszText = const_cast<char *>("Status");
+      SendMessageA(state->tab, TCM_INSERTITEMA, 0, reinterpret_cast<LPARAM>(&tabItem));
+      tabItem.pszText = const_cast<char *>("Settings");
+      SendMessageA(state->tab, TCM_INSERTITEMA, 1, reinterpret_cast<LPARAM>(&tabItem));
+      tabItem.pszText = const_cast<char *>("Mappings");
+      SendMessageA(state->tab, TCM_INSERTITEMA, 2, reinterpret_cast<LPARAM>(&tabItem));
+      SendMessage(state->tab, TCM_SETITEMSIZE, 0, MAKELPARAM(92, 24));
+
+      setControlFont(state->font,
+                     {state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText, state->versionText,
+                      state->toggleButton,
+                      state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit, state->touchpadSpeedLabel, state->touchpadSpeedEdit, state->touchpadDeadZoneLabel, state->touchpadDeadZoneEdit,
+                      state->touchpadCheck, state->swapCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
+                      state->applyButton, state->saveButton, state->reloadButton, state->importButton, state->exportButton, state->settingsNote,
+                      state->mappingsHelp, state->mappingKeyCombo, state->mappingValueCombo, state->mappingDescription, state->applyMappingButton});
+
+      SetWindowTextA(state->startupInfo, buildStartupInfo().c_str());
+      SetWindowTextA(state->mappingsHelp, buildMappingsHelpText().c_str());
+
+      state->nexPad.setWindowHandle(window);
+      state->nexPad.setStatusCallback([window](const std::string &message)
+                                      { appendOutput(window, message); });
+      applyControlTheme(state->tab);
+      applyNativeTabPalette(state->tab, state);
+      applyControlTheme(state->toggleButton);
+      applyControlTheme(state->speedCombo);
+      applyControlTheme(state->touchpadCheck);
+      applyControlTheme(state->swapCheck);
+      applyControlTheme(state->applyButton);
+      applyControlTheme(state->saveButton);
+      applyControlTheme(state->reloadButton);
+      applyControlTheme(state->presetRefreshButton);
+      applyControlTheme(state->presetSaveButton);
+      applyControlTheme(state->presetDeleteButton);
+      applyControlTheme(state->importButton);
+      applyControlTheme(state->exportButton);
+      applyControlTheme(state->applyMappingButton);
+      applyControlTheme(state->presetList);
+      applyControlTheme(state->mappingKeyCombo);
+      applyControlTheme(state->mappingValueCombo);
+      applyControlTheme(state->startupInfo);
+      applyControlTheme(state->outputInfo);
+      applyControlTheme(state->scrollEdit);
+      applyControlTheme(state->touchpadSpeedEdit);
+      applyControlTheme(state->touchpadDeadZoneEdit);
+      applyControlTheme(state->presetNameEdit);
+      applyControlTheme(state->mappingsHelp);
+      SetWindowSubclass(state->batteryBar, batteryBarSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+
+      SetWindowSubclass(state->toggleButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->touchpadCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->swapCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->applyButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->saveButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->reloadButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->presetRefreshButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->presetSaveButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->presetDeleteButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->importButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->exportButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->applyMappingButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      if (!kUseNativeComboPrototype)
       {
-        CREATESTRUCT* createStruct = reinterpret_cast<CREATESTRUCT*>(lParam);
-        state = reinterpret_cast<GuiState*>(createStruct->lpCreateParams);
-        SetWindowLongPtr(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
-
-        state->font = reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
-        state->tab = CreateWindowExA(0, WC_TABCONTROLA, "", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_OWNERDRAWFIXED | TCS_FIXEDWIDTH,
-                                    0, 0, 0, 0, window, reinterpret_cast<HMENU>(IDC_MAIN_TAB), createStruct->hInstance, NULL);
-        SetWindowSubclass(state->tab, tabSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        state->statusPage = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                           0, 0, 0, 0, state->tab, NULL, createStruct->hInstance, NULL);
-        state->settingsPage = CreateWindowExA(0, "STATIC", "", WS_CHILD,
-                                             0, 0, 0, 0, state->tab, NULL, createStruct->hInstance, NULL);
-        state->mappingsPage = CreateWindowExA(0, "STATIC", "", WS_CHILD,
-                                              0, 0, 0, 0, state->tab, NULL, createStruct->hInstance, NULL);
-        SetWindowSubclass(state->statusPage, pageSubclassProc, 1, 0);
-        SetWindowSubclass(state->settingsPage, pageSubclassProc, 1, 0);
-        SetWindowSubclass(state->mappingsPage, pageSubclassProc, 1, 0);
-
-        state->statusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_STATUS_TEXT), createStruct->hInstance, NULL);
-        state->controllerText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                                0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_CONTROLLER_TEXT), createStruct->hInstance, NULL);
-        state->controllerTypeText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                                    0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_CONTROLLER_TYPE_TEXT), createStruct->hInstance, NULL);
-        state->batteryText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                             0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_BATTERY_TEXT), createStruct->hInstance, NULL);
-        state->speedText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                          0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_SPEED_TEXT), createStruct->hInstance, NULL);
-        state->scrollText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_SCROLL_TEXT), createStruct->hInstance, NULL);
-        state->configText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_CONFIG_TEXT), createStruct->hInstance, NULL);
-        state->toggleButton = CreateWindowExA(0, "BUTTON", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                              0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_TOGGLE_BUTTON), createStruct->hInstance, NULL);
-        state->startupInfo = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
-                                             0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_STARTUP_INFO), createStruct->hInstance, NULL);
-        state->outputInfo = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
-                                            0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_OUTPUT_INFO), createStruct->hInstance, NULL);
-
-        state->speedLabel = CreateWindowExA(0, "STATIC", "Speed preset", WS_CHILD | WS_VISIBLE,
-                 12, 12, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
-        state->speedCombo = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
-                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SPEED_COMBO), createStruct->hInstance, NULL);
-        state->scrollLabel = CreateWindowExA(0, "STATIC", "Scroll speed", WS_CHILD | WS_VISIBLE,
-                 12, 68, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
-        state->scrollEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
-                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SCROLL_EDIT), createStruct->hInstance, NULL);
-        state->touchpadSpeedLabel = CreateWindowExA(0, "STATIC", "Touchpad speed", WS_CHILD | WS_VISIBLE,
-           12, 104, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
-        state->touchpadSpeedEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
-                     0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_SPEED_EDIT), createStruct->hInstance, NULL);
-          state->touchpadDeadZoneLabel = CreateWindowExA(0, "STATIC", "Touchpad dead zone", WS_CHILD | WS_VISIBLE,
-            12, 160, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
-          state->touchpadDeadZoneEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
-                   0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_DEAD_ZONE_EDIT), createStruct->hInstance, NULL);
-        state->touchpadCheck = CreateWindowExA(0, "BUTTON", "Enable DualSense touchpad", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                       0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_CHECK), createStruct->hInstance, NULL);
-        state->swapCheck = CreateWindowExA(0, "BUTTON", "Swap thumbsticks", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                          0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SWAP_CHECK), createStruct->hInstance, NULL);
-        state->presetListLabel = CreateWindowExA(0, "STATIC", "Preset list", WS_CHILD | WS_VISIBLE,
-                        12, 292, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
-        state->presetList = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
-                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_LIST), createStruct->hInstance, NULL);
-        state->presetNameLabel = CreateWindowExA(0, "STATIC", "Preset name", WS_CHILD | WS_VISIBLE,
-                        284, 292, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
-        state->presetNameEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
-                                                0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_NAME_EDIT), createStruct->hInstance, NULL);
-        state->applyButton = CreateWindowExA(0, "BUTTON", "Apply", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_APPLY_BUTTON), createStruct->hInstance, NULL);
-        state->saveButton = CreateWindowExA(0, "BUTTON", "Save to config", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                            0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SAVE_BUTTON), createStruct->hInstance, NULL);
-        state->reloadButton = CreateWindowExA(0, "BUTTON", "Reload config", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                             0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_RELOAD_BUTTON), createStruct->hInstance, NULL);
-        state->presetRefreshButton = CreateWindowExA(0, "BUTTON", "Refresh list", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                                     0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_REFRESH_BUTTON), createStruct->hInstance, NULL);
-        state->presetSaveButton = CreateWindowExA(0, "BUTTON", "Save preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                                  0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_SAVE_BUTTON), createStruct->hInstance, NULL);
-        state->presetDeleteButton = CreateWindowExA(0, "BUTTON", "Delete preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                                    0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_PRESET_DELETE_BUTTON), createStruct->hInstance, NULL);
-        state->importButton = CreateWindowExA(0, "BUTTON", "Import preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                              0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_IMPORT_BUTTON), createStruct->hInstance, NULL);
-        state->exportButton = CreateWindowExA(0, "BUTTON", "Export preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                              0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_EXPORT_BUTTON), createStruct->hInstance, NULL);
-        state->settingsNote = CreateWindowExA(0, "STATIC", buildPresetHelpText().c_str(), WS_CHILD | WS_VISIBLE,
-                                             0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SETTINGS_NOTE), createStruct->hInstance, NULL);
-        state->mappingsHelp = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
-                                              0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_MAPPINGS_HELP), createStruct->hInstance, NULL);
-        state->mappingKeyCombo = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
-                                                 0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_MAPPING_KEY_COMBO), createStruct->hInstance, NULL);
-        state->mappingValueCombo = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWN | (kUseNativeComboPrototype ? 0 : (CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
-                                                   0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_MAPPING_VALUE_COMBO), createStruct->hInstance, NULL);
-        state->mappingDescription = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
-                                                    0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_MAPPING_DESC_TEXT), createStruct->hInstance, NULL);
-        state->applyMappingButton = CreateWindowExA(0, "BUTTON", "Apply mapping", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                                                    0, 0, 0, 0, state->mappingsPage, reinterpret_cast<HMENU>(IDC_APPLY_MAPPING_BUTTON), createStruct->hInstance, NULL);
-
-        TCITEMA tabItem = {};
-        tabItem.mask = TCIF_TEXT;
-        tabItem.pszText = const_cast<char*>("Status");
-        SendMessageA(state->tab, TCM_INSERTITEMA, 0, reinterpret_cast<LPARAM>(&tabItem));
-        tabItem.pszText = const_cast<char*>("Settings");
-        SendMessageA(state->tab, TCM_INSERTITEMA, 1, reinterpret_cast<LPARAM>(&tabItem));
-        tabItem.pszText = const_cast<char*>("Mappings");
-        SendMessageA(state->tab, TCM_INSERTITEMA, 2, reinterpret_cast<LPARAM>(&tabItem));
-        SendMessage(state->tab, TCM_SETITEMSIZE, 0, MAKELPARAM(92, 24));
-
-        setControlFont(state->font,
-                       { state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText,
-                         state->toggleButton,
-                          state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit, state->touchpadSpeedLabel, state->touchpadSpeedEdit, state->touchpadDeadZoneLabel, state->touchpadDeadZoneEdit,
-                           state->touchpadCheck, state->swapCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
-                           state->applyButton, state->saveButton, state->reloadButton, state->importButton, state->exportButton, state->settingsNote,
-                           state->mappingsHelp, state->mappingKeyCombo, state->mappingValueCombo, state->mappingDescription, state->applyMappingButton });
-
-        SetWindowTextA(state->startupInfo, buildStartupInfo().c_str());
-        SetWindowTextA(state->mappingsHelp, buildMappingsHelpText().c_str());
-
-        state->nexPad.setWindowHandle(window);
-        state->nexPad.setStatusCallback([window](const std::string& message)
-        {
-          appendOutput(window, message);
-        });
-        applyControlTheme(state->tab);
-        applyNativeTabPalette(state->tab, state);
-        applyControlTheme(state->toggleButton);
-        applyControlTheme(state->speedCombo);
-        applyControlTheme(state->touchpadCheck);
-        applyControlTheme(state->swapCheck);
-        applyControlTheme(state->applyButton);
-        applyControlTheme(state->saveButton);
-        applyControlTheme(state->reloadButton);
-        applyControlTheme(state->presetRefreshButton);
-        applyControlTheme(state->presetSaveButton);
-        applyControlTheme(state->presetDeleteButton);
-        applyControlTheme(state->importButton);
-        applyControlTheme(state->exportButton);
-        applyControlTheme(state->applyMappingButton);
-        applyControlTheme(state->presetList);
-        applyControlTheme(state->mappingKeyCombo);
-        applyControlTheme(state->mappingValueCombo);
-        applyControlTheme(state->startupInfo);
-        applyControlTheme(state->outputInfo);
-        applyControlTheme(state->scrollEdit);
-        applyControlTheme(state->touchpadSpeedEdit);
-        applyControlTheme(state->touchpadDeadZoneEdit);
-        applyControlTheme(state->presetNameEdit);
-        applyControlTheme(state->mappingsHelp);
-
-        SetWindowSubclass(state->toggleButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->touchpadCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->swapCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->applyButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->saveButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->reloadButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->presetRefreshButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->presetSaveButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->presetDeleteButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->importButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->exportButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        SetWindowSubclass(state->applyMappingButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        if (!kUseNativeComboPrototype)
-        {
-          SetWindowSubclass(state->speedCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-          SetWindowSubclass(state->presetList, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-          SetWindowSubclass(state->mappingKeyCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-          SetWindowSubclass(state->mappingValueCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
-        }
-
-        applyComboChildTheme(state->speedCombo, state->font, kUseNativeComboPrototype);
-        applyComboChildTheme(state->presetList, state->font, kUseNativeComboPrototype);
-        applyComboChildTheme(state->mappingKeyCombo, state->font, kUseNativeComboPrototype);
-        applyComboChildTheme(state->mappingValueCombo, state->font, false);
-        applyThemePalette(state);
-        applyNativeTabPalette(state->tab, state);
-        state->nexPad.loadConfigFile();
-        populateSettingsControls(window);
-        populatePresetList(window);
-        populateMappingEditor(window);
-        updateSelectedMappingControls(window);
-        updateStatusControls(window);
-        appendOutput(window, "NexPad GUI initialized.");
-        SetTimer(window, 1, static_cast<UINT>(state->nexPad.getLoopIntervalMs()), NULL);
-        layoutControls(window);
-        showSelectedTab(window);
+        SetWindowSubclass(state->speedCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+        SetWindowSubclass(state->presetList, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+        SetWindowSubclass(state->mappingKeyCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+        SetWindowSubclass(state->mappingValueCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
       }
+
+      applyComboChildTheme(state->speedCombo, state->font, kUseNativeComboPrototype);
+      applyComboChildTheme(state->presetList, state->font, kUseNativeComboPrototype);
+      applyComboChildTheme(state->mappingKeyCombo, state->font, kUseNativeComboPrototype);
+      applyComboChildTheme(state->mappingValueCombo, state->font, false);
+      applyThemePalette(state);
+      applyNativeTabPalette(state->tab, state);
+      state->nexPad.loadConfigFile();
+      populateSettingsControls(window);
+      populatePresetList(window);
+      populateMappingEditor(window);
+      updateSelectedMappingControls(window);
+      updateStatusControls(window);
+      appendOutput(window, "NexPad GUI initialized.");
+      SetTimer(window, 1, static_cast<UINT>(state->nexPad.getLoopIntervalMs()), NULL);
+      layoutControls(window);
+      showSelectedTab(window);
+    }
       return 0;
 
     case WM_NOTIFY:
       if (state && reinterpret_cast<LPNMHDR>(lParam)->idFrom == IDC_MAIN_TAB && reinterpret_cast<LPNMHDR>(lParam)->code == NM_CUSTOMDRAW && (GetWindowLongPtr(state->tab, GWL_STYLE) & TCS_OWNERDRAWFIXED) == 0)
       {
-        return handleTabCustomDraw(reinterpret_cast<NMCUSTOMDRAW*>(lParam), state);
+        return handleTabCustomDraw(reinterpret_cast<NMCUSTOMDRAW *>(lParam), state);
       }
       if (state && reinterpret_cast<LPNMHDR>(lParam)->idFrom == IDC_MAIN_TAB && reinterpret_cast<LPNMHDR>(lParam)->code == TCN_SELCHANGE)
       {
@@ -2369,16 +2563,16 @@ namespace
       return 0;
 
     case WM_MEASUREITEM:
-      if (state && reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->CtlType == ODT_TAB)
+      if (state && reinterpret_cast<MEASUREITEMSTRUCT *>(lParam)->CtlType == ODT_TAB)
       {
-        reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->itemHeight = 24;
-        reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->itemWidth = 92;
+        reinterpret_cast<MEASUREITEMSTRUCT *>(lParam)->itemHeight = 24;
+        reinterpret_cast<MEASUREITEMSTRUCT *>(lParam)->itemWidth = 92;
         return TRUE;
       }
-      if (state && (reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->CtlType == ODT_COMBOBOX ||
-                    reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->CtlType == ODT_LISTBOX))
+      if (state && (reinterpret_cast<MEASUREITEMSTRUCT *>(lParam)->CtlType == ODT_COMBOBOX ||
+                    reinterpret_cast<MEASUREITEMSTRUCT *>(lParam)->CtlType == ODT_LISTBOX))
       {
-        reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->itemHeight = 20;
+        reinterpret_cast<MEASUREITEMSTRUCT *>(lParam)->itemHeight = 20;
         return TRUE;
       }
       break;
@@ -2386,7 +2580,7 @@ namespace
     case WM_DRAWITEM:
       if (state)
       {
-        DRAWITEMSTRUCT* drawItem = reinterpret_cast<DRAWITEMSTRUCT*>(lParam);
+        DRAWITEMSTRUCT *drawItem = reinterpret_cast<DRAWITEMSTRUCT *>(lParam);
         if (drawItem->CtlType == ODT_BUTTON)
         {
           drawThemedButton(drawItem, state);
@@ -2566,6 +2760,7 @@ namespace
         RemoveWindowSubclass(state->statusPage, pageSubclassProc, 1);
         RemoveWindowSubclass(state->settingsPage, pageSubclassProc, 1);
         RemoveWindowSubclass(state->mappingsPage, pageSubclassProc, 1);
+        RemoveWindowSubclass(state->batteryBar, batteryBarSubclassProc, 1);
         RemoveWindowSubclass(state->toggleButton, buttonSubclassProc, 1);
         RemoveWindowSubclass(state->swapCheck, buttonSubclassProc, 1);
         RemoveWindowSubclass(state->applyButton, buttonSubclassProc, 1);
@@ -2692,7 +2887,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
   windowClass.hIconSm = LoadIcon(instance, MAKEINTRESOURCE(IDI_ICON1));
   RegisterClassEx(&windowClass);
 
-  GuiState* state = new GuiState();
+  GuiState *state = new GuiState();
   HWND window = CreateWindowEx(0,
                                windowClass.lpszClassName,
                                TEXT("NexPad"),
@@ -2726,15 +2921,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
 
 BOOL isRunningAsAdministrator()
 {
-  BOOL   fRet = FALSE;
+  BOOL fRet = FALSE;
   HANDLE hToken = NULL;
 
   if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
   {
     TOKEN_ELEVATION Elevation;
-    DWORD cbSize = sizeof( TOKEN_ELEVATION );
+    DWORD cbSize = sizeof(TOKEN_ELEVATION);
 
-    if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof( Elevation), &cbSize))
+    if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize))
     {
       fRet = Elevation.TokenIsElevated;
     }
@@ -2749,7 +2944,7 @@ BOOL isRunningAsAdministrator()
 }
 
 // This works, but it's not enabled in the software since the best button for it is still undecided
-bool ChangeVolume(double nVolume, bool bScalar) //o b
+bool ChangeVolume(double nVolume, bool bScalar) // o b
 {
   HRESULT hr = NULL;
   bool decibels = false;
@@ -2773,16 +2968,16 @@ bool ChangeVolume(double nVolume, bool bScalar) //o b
   defaultDevice = NULL;
 
   // -------------------------
-//   float currentVolume = 0;
-//   endpointVolume->GetMasterVolumeLevel(&currentVolume);
-//   //printf("Current volume in dB is: %f\n", currentVolume);
+  //   float currentVolume = 0;
+  //   endpointVolume->GetMasterVolumeLevel(&currentVolume);
+  //   //printf("Current volume in dB is: %f\n", currentVolume);
 
-//   hr = endpointVolume->GetMasterVolumeLevelScalar(&currentVolume);
-//   //CString strCur=L"";
-//   //strCur.Format(L"%f",currentVolume);
-//   //AfxMessageBox(strCur);
+  //   hr = endpointVolume->GetMasterVolumeLevelScalar(&currentVolume);
+  //   //CString strCur=L"";
+  //   //strCur.Format(L"%f",currentVolume);
+  //   //AfxMessageBox(strCur);
 
-//   // printf("Current volume as a scalar is: %f\n", currentVolume);
+  //   // printf("Current volume as a scalar is: %f\n", currentVolume);
   if (bScalar == false)
   {
     hr = endpointVolume->SetMasterVolumeLevel((float)newVolume, NULL);

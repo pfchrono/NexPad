@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter()]
-  [string]$Version = "local",
+  [string]$Version = "",
 
   [Parameter()]
   [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -26,6 +26,27 @@ function Resolve-MSBuildPath {
   throw "MSBuild.exe was not found. Install Visual Studio Build Tools 2022 or run from a shell where MSBuild is already on PATH."
 }
 
+function Resolve-VersionValue {
+  param(
+    [Parameter()]
+    [string]$RequestedVersion
+  )
+
+  if (![string]::IsNullOrWhiteSpace($RequestedVersion)) {
+    return $RequestedVersion.Trim()
+  }
+
+  try {
+    $tag = git describe --tags --abbrev=0 2>$null
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($tag)) {
+      return $tag.Trim()
+    }
+  } catch {
+  }
+
+  return "local"
+}
+
 function Invoke-SolutionBuild {
   param(
     [Parameter(Mandatory = $true)]
@@ -35,11 +56,14 @@ function Invoke-SolutionBuild {
     [string]$SolutionPath,
 
     [Parameter(Mandatory = $true)]
-    [string]$Platform
+    [string]$Platform,
+
+    [Parameter(Mandatory = $true)]
+    [string]$VersionValue
   )
 
   Write-Host "Building Release|$Platform ..."
-  & $MSBuildPath $SolutionPath "/p:Configuration=Release" "/p:Platform=$Platform"
+  & $MSBuildPath $SolutionPath "/p:Configuration=Release" "/p:Platform=$Platform" "/p:NexPadVersion=$VersionValue"
   if ($LASTEXITCODE -ne 0) {
     throw "MSBuild failed for platform $Platform."
   }
@@ -112,8 +136,9 @@ New-Item -ItemType Directory -Path $artifactsRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
 
 $msbuildPath = Resolve-MSBuildPath
-Invoke-SolutionBuild -MSBuildPath $msbuildPath -SolutionPath $solutionPath -Platform "Win32"
-Invoke-SolutionBuild -MSBuildPath $msbuildPath -SolutionPath $solutionPath -Platform "x64"
+$resolvedVersion = Resolve-VersionValue -RequestedVersion $Version
+Invoke-SolutionBuild -MSBuildPath $msbuildPath -SolutionPath $solutionPath -Platform "Win32" -VersionValue $resolvedVersion
+Invoke-SolutionBuild -MSBuildPath $msbuildPath -SolutionPath $solutionPath -Platform "x64" -VersionValue $resolvedVersion
 
 $win32Stage = Join-Path $stagingRoot "win32"
 $x64Stage = Join-Path $stagingRoot "x64"
@@ -133,8 +158,8 @@ Copy-Item (Join-Path $releaseRoot "x64\README.md") $x64Stage -Force
 Copy-Item (Join-Path $releaseRoot "x64\LICENSE") $x64Stage -Force
 Copy-DirectoryContents -Source (Join-Path $releaseRoot "x64\presets") -Destination (Join-Path $x64Stage "presets")
 
-$win32Zip = Join-Path $artifactsRoot ("NexPad-win32-{0}.zip" -f $Version)
-$x64Zip = Join-Path $artifactsRoot ("NexPad-x64-{0}.zip" -f $Version)
+$win32Zip = Join-Path $artifactsRoot ("NexPad-win32-{0}.zip" -f $resolvedVersion)
+$x64Zip = Join-Path $artifactsRoot ("NexPad-x64-{0}.zip" -f $resolvedVersion)
 
 New-ZipFromDirectory -SourceDirectory $win32Stage -ZipPath $win32Zip
 New-ZipFromDirectory -SourceDirectory $x64Stage -ZipPath $x64Zip

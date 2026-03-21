@@ -4,10 +4,10 @@
 #include <list>
 #include <string>
 #include <functional>
-#include <xinput.h> // controller
-#include <stdio.h> // for printf
-#include <cmath> // for abs()
-#include <mmdeviceapi.h> // vol
+#include <xinput.h>         // controller
+#include <stdio.h>          // for printf
+#include <cmath>            // for abs()
+#include <mmdeviceapi.h>    // vol
 #include <endpointvolume.h> // vol
 #include <tchar.h>
 #include <ShlObj.h>
@@ -28,17 +28,24 @@ public:
     bool keyboardValue;
   };
 
+  enum class TouchpadInteractionMode
+  {
+    Idle,
+    OneFingerCursor,
+    TwoFingerScroll,
+  };
+
 private:
-  int DEAD_ZONE = 6000;                 // Thumbstick dead zone to use for mouse movement. Absolute maximum shall be 65534.
-  int SCROLL_DEAD_ZONE = 5000;          // Thumbstick dead zone to use for scroll wheel movement. Absolute maximum shall be 65534.
-  int TRIGGER_DEAD_ZONE = 0;            // Dead zone for the left and right triggers to detect a trigger press. 0 means that any press to trigger will be read as a button press.
-  float SCROLL_SPEED = 0.1f;             // Speed at which you scroll.
-  int TOUCHPAD_ENABLED = 0;             // Enables DualSense touchpad cursor control when non-zero.
-  int TOUCHPAD_DEAD_ZONE = 2;           // Minimum per-frame touchpad motion before cursor movement is applied.
-  float TOUCHPAD_SPEED = 1.2f;          // Multiplier for DualSense touchpad cursor movement.
-  const int FPS = 150;                  // Update rate of the main NexPad loop. Interpreted as cycles-per-second.
-  const int SLEEP_AMOUNT = 1000 / FPS;  // Number of milliseconds to sleep per iteration.
-  int SWAP_THUMBSTICKS = 0;             // Swaps the function of the thumbsticks when not equal to 0.
+  int DEAD_ZONE = 6000;                // Thumbstick dead zone to use for mouse movement. Absolute maximum shall be 65534.
+  int SCROLL_DEAD_ZONE = 5000;         // Thumbstick dead zone to use for scroll wheel movement. Absolute maximum shall be 65534.
+  int TRIGGER_DEAD_ZONE = 0;           // Dead zone for the left and right triggers to detect a trigger press. 0 means that any press to trigger will be read as a button press.
+  float SCROLL_SPEED = 0.1f;           // Speed at which you scroll.
+  int TOUCHPAD_ENABLED = 0;            // Enables DualSense touchpad cursor control when non-zero.
+  int TOUCHPAD_DEAD_ZONE = 2;          // Minimum per-frame touchpad motion before cursor movement is applied.
+  float TOUCHPAD_SPEED = 1.2f;         // Multiplier for DualSense touchpad cursor movement.
+  const int FPS = 150;                 // Update rate of the main NexPad loop. Interpreted as cycles-per-second.
+  const int SLEEP_AMOUNT = 1000 / FPS; // Number of milliseconds to sleep per iteration.
+  int SWAP_THUMBSTICKS = 0;            // Swaps the function of the thumbsticks when not equal to 0.
 
   XINPUT_STATE _currentState;
 
@@ -52,26 +59,34 @@ private:
 
   float _xRest = 0.0f;
   float _yRest = 0.0f;
+  float _touchpadScrollRawX = 0.0f;
+  float _touchpadScrollRawY = 0.0f;
+  float _touchpadScrollXRest = 0.0f;
+  float _touchpadScrollYRest = 0.0f;
+  float _touchpadTapCursorTravelX = 0.0f;
+  float _touchpadTapCursorTravelY = 0.0f;
   bool _touchpadTouchWasActive = false;
   bool _touchpadTapMoved = false;
+  bool _touchpadAwaitingReleaseAfterScroll = false;
   DWORD _touchpadTapStartTick = 0;
+  TouchpadInteractionMode _touchpadInteractionMode = TouchpadInteractionMode::Idle;
 
-  bool _disabled = false;           // Disables the NexPad controller mapping.
-  bool _vibrationDisabled = false;  // Prevents NexPad from producing controller vibrations. 
-  bool _hidden = false;             // NexPad main window visibility.
+  bool _disabled = false;          // Disables the NexPad controller mapping.
+  bool _vibrationDisabled = false; // Prevents NexPad from producing controller vibrations.
+  bool _hidden = false;            // NexPad main window visibility.
   bool _controllerWasConnected = false;
-  bool _lTriggerPrevious = false;   // Previous state of the left trigger.
-  bool _rTriggerPrevious = false;   // Previous state of the right trigger.
+  bool _lTriggerPrevious = false; // Previous state of the left trigger.
+  bool _rTriggerPrevious = false; // Previous state of the right trigger.
 
-  std::vector<float> speeds;	            // Contains actual speeds to choose
-  std::vector<std::string> speed_names;   // Contains display names of speeds to display
+  std::vector<float> speeds;            // Contains actual speeds to choose
+  std::vector<std::string> speed_names; // Contains display names of speeds to display
   unsigned int speed_idx = 0;
 
   // Mouse Clicks
   DWORD CONFIG_MOUSE_LEFT = NULL;
   DWORD CONFIG_MOUSE_RIGHT = NULL;
   DWORD CONFIG_MOUSE_MIDDLE = NULL;
-  
+
   // NexPad Settings
   DWORD CONFIG_HIDE = NULL;
   DWORD CONFIG_DISABLE = NULL;
@@ -109,14 +124,13 @@ private:
 
   std::list<WORD> _pressedKeys;
 
-  CXBOXController* _controller;
+  CXBOXController *_controller;
   HWND _windowHandle = NULL;
-  std::function<void(const std::string&)> _statusCallback;
+  std::function<void(const std::string &)> _statusCallback;
   std::string _configPath = "config.ini";
 
 public:
-
-  NexPad(CXBOXController* controller);
+  NexPad(CXBOXController *controller);
 
   void loadConfigFile();
 
@@ -126,7 +140,7 @@ public:
 
   void toggleWindowVisibility();
 
-  void setWindowVisibility(const bool& hidden) const;
+  void setWindowVisibility(const bool &hidden) const;
 
   float getDelta(short tx);
 
@@ -134,7 +148,11 @@ public:
 
   void handleMouseMovement();
 
-  void handleTouchpadMovement(float& dx, float& dy);
+  void updateTouchpadInteractionState();
+
+  void handleTouchpadMovement(float &dx, float &dy);
+
+  void handleTouchpadScrolling();
 
   void handleTouchpadTapGesture();
 
@@ -160,7 +178,7 @@ public:
 
   void setWindowHandle(HWND windowHandle);
 
-  void setStatusCallback(const std::function<void(const std::string&)>& callback);
+  void setStatusCallback(const std::function<void(const std::string &)> &callback);
 
   bool isDisabled() const;
 
@@ -180,9 +198,9 @@ public:
 
   int getLoopIntervalMs() const;
 
-  const std::vector<float>& getSpeeds() const;
+  const std::vector<float> &getSpeeds() const;
 
-  const std::vector<std::string>& getSpeedNames() const;
+  const std::vector<std::string> &getSpeedNames() const;
 
   unsigned int getSpeedIndex() const;
 
@@ -200,7 +218,7 @@ public:
 
   void setSwapThumbsticks(int value);
 
-  const std::string& getConfigPath() const;
+  const std::string &getConfigPath() const;
 
   bool saveConfigFile();
 
@@ -208,21 +226,22 @@ public:
 
   std::string getMappingsText() const;
 
-  bool applyMappingsText(const std::string& mappingsText);
+  bool applyMappingsText(const std::string &mappingsText);
 
   std::string getProfileText() const;
 
-  bool applyProfileText(const std::string& profileText);
+  bool applyProfileText(const std::string &profileText);
 
   std::vector<MappingEntry> getMappingEntries() const;
 
-  bool setMappingValue(const std::string& key, DWORD value);
+  bool setMappingValue(const std::string &key, DWORD value);
 
 private:
+  void resetTouchpadInteractionState();
 
   void releaseAllActiveInputs();
 
   bool erasePressedKey(WORD key);
 
-  void notifyStatus(const std::string& message) const;
+  void notifyStatus(const std::string &message) const;
 };

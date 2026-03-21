@@ -26,7 +26,7 @@ namespace
     return fullPath.substr(0, separator);
   }
 
-  std::string joinPath(const std::string& left, const std::string& right)
+  std::string joinPath(const std::string &left, const std::string &right)
   {
     if (left.empty() || left == ".")
     {
@@ -41,7 +41,7 @@ namespace
     return left + "\\" + right;
   }
 
-  void appendHexSetting(std::ostringstream& stream, const std::string& key, DWORD value)
+  void appendHexSetting(std::ostringstream &stream, const std::string &key, DWORD value)
   {
     stream << key << " = 0x"
            << std::uppercase << std::hex << value
@@ -49,7 +49,7 @@ namespace
            << "\r\n";
   }
 
-  bool tryParseConfigValue(const std::string& text, const std::string& key, DWORD& value)
+  bool tryParseConfigValue(const std::string &text, const std::string &key, DWORD &value)
   {
     std::istringstream input(text);
     for (std::string line; std::getline(input, line);)
@@ -102,7 +102,7 @@ namespace
     return false;
   }
 
-  bool tryParseFloatConfigValue(const std::string& text, const std::string& key, float& value)
+  bool tryParseFloatConfigValue(const std::string &text, const std::string &key, float &value)
   {
     std::istringstream input(text);
     for (std::string line; std::getline(input, line);)
@@ -208,7 +208,7 @@ void mouseEvent(DWORD dwFlags, DWORD mouseData = 0)
 
   // Only set mouseData when using a supported dwFlags type
   if (dwFlags == MOUSEEVENTF_WHEEL ||
-      dwFlags == MOUSEEVENTF_XUP   ||
+      dwFlags == MOUSEEVENTF_XUP ||
       dwFlags == MOUSEEVENTF_XDOWN ||
       dwFlags == MOUSEEVENTF_HWHEEL)
   {
@@ -224,8 +224,8 @@ void mouseEvent(DWORD dwFlags, DWORD mouseData = 0)
   SendInput(1, &input, sizeof(INPUT));
 }
 
-NexPad::NexPad(CXBOXController * controller)
-  : _controller(controller)
+NexPad::NexPad(CXBOXController *controller)
+    : _controller(controller)
 {
   _configPath = joinPath(getExecutableDirectory(), "config.ini");
 }
@@ -235,7 +235,7 @@ void NexPad::setWindowHandle(HWND windowHandle)
   _windowHandle = windowHandle;
 }
 
-void NexPad::setStatusCallback(const std::function<void(const std::string&)>& callback)
+void NexPad::setStatusCallback(const std::function<void(const std::string &)> &callback)
 {
   _statusCallback = callback;
 }
@@ -285,12 +285,12 @@ int NexPad::getLoopIntervalMs() const
   return SLEEP_AMOUNT;
 }
 
-const std::vector<float>& NexPad::getSpeeds() const
+const std::vector<float> &NexPad::getSpeeds() const
 {
   return speeds;
 }
 
-const std::vector<std::string>& NexPad::getSpeedNames() const
+const std::vector<std::string> &NexPad::getSpeedNames() const
 {
   return speed_names;
 }
@@ -305,7 +305,7 @@ int NexPad::getSwapThumbsticks() const
   return SWAP_THUMBSTICKS;
 }
 
-const std::string& NexPad::getConfigPath() const
+const std::string &NexPad::getConfigPath() const
 {
   return _configPath;
 }
@@ -371,7 +371,7 @@ void NexPad::setSwapThumbsticks(int value)
   notifyStatus(std::string("Swap thumbsticks ") + (SWAP_THUMBSTICKS ? "Enabled" : "Disabled"));
 }
 
-void NexPad::notifyStatus(const std::string& message) const
+void NexPad::notifyStatus(const std::string &message) const
 {
   if (_statusCallback)
   {
@@ -380,14 +380,14 @@ void NexPad::notifyStatus(const std::string& message) const
 }
 
 // Description:
-//   Reads and parses the configuration file, assigning values to the 
+//   Reads and parses the configuration file, assigning values to the
 //     configuration variables.
 void NexPad::loadConfigFile()
 {
   ConfigFile cfg(_configPath);
   speeds.clear();
   speed_names.clear();
-  
+
   //--------------------------------
   // Configuration bindings
   //--------------------------------
@@ -525,10 +525,10 @@ void NexPad::loadConfigFile()
 
 namespace
 {
-  bool updateConfigLine(std::vector<std::string>& lines, const std::string& key, const std::string& value)
+  bool updateConfigLine(std::vector<std::string> &lines, const std::string &key, const std::string &value)
   {
     const std::string prefix = key + " =";
-    for (std::string& line : lines)
+    for (std::string &line : lines)
     {
       std::string trimmed = line;
       trimmed.erase(0, trimmed.find_first_not_of("\t "));
@@ -553,65 +553,167 @@ namespace
 
 std::vector<NexPad::MappingEntry> NexPad::getMappingEntries() const
 {
-  return
-  {
-    { "CONFIG_MOUSE_LEFT", "Mouse left click trigger", CONFIG_MOUSE_LEFT, false },
-    { "CONFIG_MOUSE_RIGHT", "Mouse right click trigger", CONFIG_MOUSE_RIGHT, false },
-    { "CONFIG_MOUSE_MIDDLE", "Mouse middle click trigger", CONFIG_MOUSE_MIDDLE, false },
-    { "CONFIG_HIDE", "Toggle window visibility", CONFIG_HIDE, false },
-    { "CONFIG_DISABLE", "Enable or disable NexPad", CONFIG_DISABLE, false },
-    { "CONFIG_DISABLE_VIBRATION", "Toggle controller vibration", CONFIG_DISABLE_VIBRATION, false },
-    { "CONFIG_SPEED_CHANGE", "Cycle through cursor speed presets", CONFIG_SPEED_CHANGE, false },
-    { "CONFIG_OSK", "Toggle On-Screen Keyboard", CONFIG_OSK, false },
-    { "GAMEPAD_DPAD_UP", "Keyboard mapping for D-Pad Up", GAMEPAD_DPAD_UP, true },
-    { "GAMEPAD_DPAD_DOWN", "Keyboard mapping for D-Pad Down", GAMEPAD_DPAD_DOWN, true },
-    { "GAMEPAD_DPAD_LEFT", "Keyboard mapping for D-Pad Left", GAMEPAD_DPAD_LEFT, true },
-    { "GAMEPAD_DPAD_RIGHT", "Keyboard mapping for D-Pad Right", GAMEPAD_DPAD_RIGHT, true },
-    { "GAMEPAD_START", "Keyboard mapping for Start / Options", GAMEPAD_START, true },
-    { "GAMEPAD_BACK", "Keyboard mapping for Back / Share", GAMEPAD_BACK, true },
-    { "GAMEPAD_LEFT_THUMB", "Keyboard mapping for Left Thumb", GAMEPAD_LEFT_THUMB, true },
-    { "GAMEPAD_RIGHT_THUMB", "Keyboard mapping for Right Thumb", GAMEPAD_RIGHT_THUMB, true },
-    { "GAMEPAD_LEFT_SHOULDER", "Keyboard mapping for Left Shoulder", GAMEPAD_LEFT_SHOULDER, true },
-    { "GAMEPAD_RIGHT_SHOULDER", "Keyboard mapping for Right Shoulder", GAMEPAD_RIGHT_SHOULDER, true },
-    { "GAMEPAD_A", "Keyboard mapping for A / Cross", GAMEPAD_A, true },
-    { "GAMEPAD_B", "Keyboard mapping for B / Circle", GAMEPAD_B, true },
-    { "GAMEPAD_X", "Keyboard mapping for X / Square", GAMEPAD_X, true },
-    { "GAMEPAD_Y", "Keyboard mapping for Y / Triangle", GAMEPAD_Y, true },
-    { "GAMEPAD_TRIGGER_LEFT", "Keyboard mapping for Left Trigger", GAMEPAD_TRIGGER_LEFT, true },
-    { "GAMEPAD_TRIGGER_RIGHT", "Keyboard mapping for Right Trigger", GAMEPAD_TRIGGER_RIGHT, true },
-    { "ON_ENABLE", "Key sent when NexPad becomes enabled", ON_ENABLE, true },
-    { "ON_DISABLE", "Key sent when NexPad becomes disabled", ON_DISABLE, true }
-  };
+  return {
+      {"CONFIG_MOUSE_LEFT", "Mouse left click trigger", CONFIG_MOUSE_LEFT, false},
+      {"CONFIG_MOUSE_RIGHT", "Mouse right click trigger", CONFIG_MOUSE_RIGHT, false},
+      {"CONFIG_MOUSE_MIDDLE", "Mouse middle click trigger", CONFIG_MOUSE_MIDDLE, false},
+      {"CONFIG_HIDE", "Toggle window visibility", CONFIG_HIDE, false},
+      {"CONFIG_DISABLE", "Enable or disable NexPad", CONFIG_DISABLE, false},
+      {"CONFIG_DISABLE_VIBRATION", "Toggle controller vibration", CONFIG_DISABLE_VIBRATION, false},
+      {"CONFIG_SPEED_CHANGE", "Cycle through cursor speed presets", CONFIG_SPEED_CHANGE, false},
+      {"CONFIG_OSK", "Toggle On-Screen Keyboard", CONFIG_OSK, false},
+      {"GAMEPAD_DPAD_UP", "Keyboard mapping for D-Pad Up", GAMEPAD_DPAD_UP, true},
+      {"GAMEPAD_DPAD_DOWN", "Keyboard mapping for D-Pad Down", GAMEPAD_DPAD_DOWN, true},
+      {"GAMEPAD_DPAD_LEFT", "Keyboard mapping for D-Pad Left", GAMEPAD_DPAD_LEFT, true},
+      {"GAMEPAD_DPAD_RIGHT", "Keyboard mapping for D-Pad Right", GAMEPAD_DPAD_RIGHT, true},
+      {"GAMEPAD_START", "Keyboard mapping for Start / Options", GAMEPAD_START, true},
+      {"GAMEPAD_BACK", "Keyboard mapping for Back / Share", GAMEPAD_BACK, true},
+      {"GAMEPAD_LEFT_THUMB", "Keyboard mapping for Left Thumb", GAMEPAD_LEFT_THUMB, true},
+      {"GAMEPAD_RIGHT_THUMB", "Keyboard mapping for Right Thumb", GAMEPAD_RIGHT_THUMB, true},
+      {"GAMEPAD_LEFT_SHOULDER", "Keyboard mapping for Left Shoulder", GAMEPAD_LEFT_SHOULDER, true},
+      {"GAMEPAD_RIGHT_SHOULDER", "Keyboard mapping for Right Shoulder", GAMEPAD_RIGHT_SHOULDER, true},
+      {"GAMEPAD_A", "Keyboard mapping for A / Cross", GAMEPAD_A, true},
+      {"GAMEPAD_B", "Keyboard mapping for B / Circle", GAMEPAD_B, true},
+      {"GAMEPAD_X", "Keyboard mapping for X / Square", GAMEPAD_X, true},
+      {"GAMEPAD_Y", "Keyboard mapping for Y / Triangle", GAMEPAD_Y, true},
+      {"GAMEPAD_TRIGGER_LEFT", "Keyboard mapping for Left Trigger", GAMEPAD_TRIGGER_LEFT, true},
+      {"GAMEPAD_TRIGGER_RIGHT", "Keyboard mapping for Right Trigger", GAMEPAD_TRIGGER_RIGHT, true},
+      {"ON_ENABLE", "Key sent when NexPad becomes enabled", ON_ENABLE, true},
+      {"ON_DISABLE", "Key sent when NexPad becomes disabled", ON_DISABLE, true}};
 }
 
-bool NexPad::setMappingValue(const std::string& key, DWORD value)
+bool NexPad::setMappingValue(const std::string &key, DWORD value)
 {
-  if (key == "CONFIG_MOUSE_LEFT") { CONFIG_MOUSE_LEFT = value; return true; }
-  if (key == "CONFIG_MOUSE_RIGHT") { CONFIG_MOUSE_RIGHT = value; return true; }
-  if (key == "CONFIG_MOUSE_MIDDLE") { CONFIG_MOUSE_MIDDLE = value; return true; }
-  if (key == "CONFIG_HIDE") { CONFIG_HIDE = value; return true; }
-  if (key == "CONFIG_DISABLE") { CONFIG_DISABLE = value; return true; }
-  if (key == "CONFIG_DISABLE_VIBRATION") { CONFIG_DISABLE_VIBRATION = value; return true; }
-  if (key == "CONFIG_SPEED_CHANGE") { CONFIG_SPEED_CHANGE = value; return true; }
-  if (key == "CONFIG_OSK") { CONFIG_OSK = value; return true; }
-  if (key == "GAMEPAD_DPAD_UP") { GAMEPAD_DPAD_UP = value; return true; }
-  if (key == "GAMEPAD_DPAD_DOWN") { GAMEPAD_DPAD_DOWN = value; return true; }
-  if (key == "GAMEPAD_DPAD_LEFT") { GAMEPAD_DPAD_LEFT = value; return true; }
-  if (key == "GAMEPAD_DPAD_RIGHT") { GAMEPAD_DPAD_RIGHT = value; return true; }
-  if (key == "GAMEPAD_START") { GAMEPAD_START = value; return true; }
-  if (key == "GAMEPAD_BACK") { GAMEPAD_BACK = value; return true; }
-  if (key == "GAMEPAD_LEFT_THUMB") { GAMEPAD_LEFT_THUMB = value; return true; }
-  if (key == "GAMEPAD_RIGHT_THUMB") { GAMEPAD_RIGHT_THUMB = value; return true; }
-  if (key == "GAMEPAD_LEFT_SHOULDER") { GAMEPAD_LEFT_SHOULDER = value; return true; }
-  if (key == "GAMEPAD_RIGHT_SHOULDER") { GAMEPAD_RIGHT_SHOULDER = value; return true; }
-  if (key == "GAMEPAD_A") { GAMEPAD_A = value; return true; }
-  if (key == "GAMEPAD_B") { GAMEPAD_B = value; return true; }
-  if (key == "GAMEPAD_X") { GAMEPAD_X = value; return true; }
-  if (key == "GAMEPAD_Y") { GAMEPAD_Y = value; return true; }
-  if (key == "GAMEPAD_TRIGGER_LEFT") { GAMEPAD_TRIGGER_LEFT = value; return true; }
-  if (key == "GAMEPAD_TRIGGER_RIGHT") { GAMEPAD_TRIGGER_RIGHT = value; return true; }
-  if (key == "ON_ENABLE") { ON_ENABLE = value; return true; }
-  if (key == "ON_DISABLE") { ON_DISABLE = value; return true; }
+  if (key == "CONFIG_MOUSE_LEFT")
+  {
+    CONFIG_MOUSE_LEFT = value;
+    return true;
+  }
+  if (key == "CONFIG_MOUSE_RIGHT")
+  {
+    CONFIG_MOUSE_RIGHT = value;
+    return true;
+  }
+  if (key == "CONFIG_MOUSE_MIDDLE")
+  {
+    CONFIG_MOUSE_MIDDLE = value;
+    return true;
+  }
+  if (key == "CONFIG_HIDE")
+  {
+    CONFIG_HIDE = value;
+    return true;
+  }
+  if (key == "CONFIG_DISABLE")
+  {
+    CONFIG_DISABLE = value;
+    return true;
+  }
+  if (key == "CONFIG_DISABLE_VIBRATION")
+  {
+    CONFIG_DISABLE_VIBRATION = value;
+    return true;
+  }
+  if (key == "CONFIG_SPEED_CHANGE")
+  {
+    CONFIG_SPEED_CHANGE = value;
+    return true;
+  }
+  if (key == "CONFIG_OSK")
+  {
+    CONFIG_OSK = value;
+    return true;
+  }
+  if (key == "GAMEPAD_DPAD_UP")
+  {
+    GAMEPAD_DPAD_UP = value;
+    return true;
+  }
+  if (key == "GAMEPAD_DPAD_DOWN")
+  {
+    GAMEPAD_DPAD_DOWN = value;
+    return true;
+  }
+  if (key == "GAMEPAD_DPAD_LEFT")
+  {
+    GAMEPAD_DPAD_LEFT = value;
+    return true;
+  }
+  if (key == "GAMEPAD_DPAD_RIGHT")
+  {
+    GAMEPAD_DPAD_RIGHT = value;
+    return true;
+  }
+  if (key == "GAMEPAD_START")
+  {
+    GAMEPAD_START = value;
+    return true;
+  }
+  if (key == "GAMEPAD_BACK")
+  {
+    GAMEPAD_BACK = value;
+    return true;
+  }
+  if (key == "GAMEPAD_LEFT_THUMB")
+  {
+    GAMEPAD_LEFT_THUMB = value;
+    return true;
+  }
+  if (key == "GAMEPAD_RIGHT_THUMB")
+  {
+    GAMEPAD_RIGHT_THUMB = value;
+    return true;
+  }
+  if (key == "GAMEPAD_LEFT_SHOULDER")
+  {
+    GAMEPAD_LEFT_SHOULDER = value;
+    return true;
+  }
+  if (key == "GAMEPAD_RIGHT_SHOULDER")
+  {
+    GAMEPAD_RIGHT_SHOULDER = value;
+    return true;
+  }
+  if (key == "GAMEPAD_A")
+  {
+    GAMEPAD_A = value;
+    return true;
+  }
+  if (key == "GAMEPAD_B")
+  {
+    GAMEPAD_B = value;
+    return true;
+  }
+  if (key == "GAMEPAD_X")
+  {
+    GAMEPAD_X = value;
+    return true;
+  }
+  if (key == "GAMEPAD_Y")
+  {
+    GAMEPAD_Y = value;
+    return true;
+  }
+  if (key == "GAMEPAD_TRIGGER_LEFT")
+  {
+    GAMEPAD_TRIGGER_LEFT = value;
+    return true;
+  }
+  if (key == "GAMEPAD_TRIGGER_RIGHT")
+  {
+    GAMEPAD_TRIGGER_RIGHT = value;
+    return true;
+  }
+  if (key == "ON_ENABLE")
+  {
+    ON_ENABLE = value;
+    return true;
+  }
+  if (key == "ON_DISABLE")
+  {
+    ON_DISABLE = value;
+    return true;
+  }
   return false;
 }
 
@@ -721,36 +823,88 @@ std::string NexPad::getMappingsText() const
   return stream.str();
 }
 
-bool NexPad::applyMappingsText(const std::string& mappingsText)
+bool NexPad::applyMappingsText(const std::string &mappingsText)
 {
   DWORD parsedValue = 0;
 
-  if (!tryParseConfigValue(mappingsText, "CONFIG_MOUSE_LEFT", parsedValue)) return false; CONFIG_MOUSE_LEFT = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "CONFIG_MOUSE_RIGHT", parsedValue)) return false; CONFIG_MOUSE_RIGHT = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "CONFIG_MOUSE_MIDDLE", parsedValue)) return false; CONFIG_MOUSE_MIDDLE = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "CONFIG_HIDE", parsedValue)) return false; CONFIG_HIDE = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "CONFIG_DISABLE", parsedValue)) return false; CONFIG_DISABLE = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "CONFIG_DISABLE_VIBRATION", parsedValue)) return false; CONFIG_DISABLE_VIBRATION = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "CONFIG_SPEED_CHANGE", parsedValue)) return false; CONFIG_SPEED_CHANGE = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "CONFIG_OSK", parsedValue)) return false; CONFIG_OSK = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_DPAD_UP", parsedValue)) return false; GAMEPAD_DPAD_UP = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_DPAD_DOWN", parsedValue)) return false; GAMEPAD_DPAD_DOWN = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_DPAD_LEFT", parsedValue)) return false; GAMEPAD_DPAD_LEFT = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_DPAD_RIGHT", parsedValue)) return false; GAMEPAD_DPAD_RIGHT = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_START", parsedValue)) return false; GAMEPAD_START = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_BACK", parsedValue)) return false; GAMEPAD_BACK = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_LEFT_THUMB", parsedValue)) return false; GAMEPAD_LEFT_THUMB = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_RIGHT_THUMB", parsedValue)) return false; GAMEPAD_RIGHT_THUMB = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_LEFT_SHOULDER", parsedValue)) return false; GAMEPAD_LEFT_SHOULDER = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_RIGHT_SHOULDER", parsedValue)) return false; GAMEPAD_RIGHT_SHOULDER = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_A", parsedValue)) return false; GAMEPAD_A = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_B", parsedValue)) return false; GAMEPAD_B = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_X", parsedValue)) return false; GAMEPAD_X = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_Y", parsedValue)) return false; GAMEPAD_Y = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_TRIGGER_LEFT", parsedValue)) return false; GAMEPAD_TRIGGER_LEFT = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "GAMEPAD_TRIGGER_RIGHT", parsedValue)) return false; GAMEPAD_TRIGGER_RIGHT = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "ON_ENABLE", parsedValue)) return false; ON_ENABLE = parsedValue;
-  if (!tryParseConfigValue(mappingsText, "ON_DISABLE", parsedValue)) return false; ON_DISABLE = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "CONFIG_MOUSE_LEFT", parsedValue))
+    return false;
+  CONFIG_MOUSE_LEFT = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "CONFIG_MOUSE_RIGHT", parsedValue))
+    return false;
+  CONFIG_MOUSE_RIGHT = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "CONFIG_MOUSE_MIDDLE", parsedValue))
+    return false;
+  CONFIG_MOUSE_MIDDLE = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "CONFIG_HIDE", parsedValue))
+    return false;
+  CONFIG_HIDE = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "CONFIG_DISABLE", parsedValue))
+    return false;
+  CONFIG_DISABLE = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "CONFIG_DISABLE_VIBRATION", parsedValue))
+    return false;
+  CONFIG_DISABLE_VIBRATION = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "CONFIG_SPEED_CHANGE", parsedValue))
+    return false;
+  CONFIG_SPEED_CHANGE = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "CONFIG_OSK", parsedValue))
+    return false;
+  CONFIG_OSK = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_DPAD_UP", parsedValue))
+    return false;
+  GAMEPAD_DPAD_UP = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_DPAD_DOWN", parsedValue))
+    return false;
+  GAMEPAD_DPAD_DOWN = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_DPAD_LEFT", parsedValue))
+    return false;
+  GAMEPAD_DPAD_LEFT = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_DPAD_RIGHT", parsedValue))
+    return false;
+  GAMEPAD_DPAD_RIGHT = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_START", parsedValue))
+    return false;
+  GAMEPAD_START = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_BACK", parsedValue))
+    return false;
+  GAMEPAD_BACK = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_LEFT_THUMB", parsedValue))
+    return false;
+  GAMEPAD_LEFT_THUMB = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_RIGHT_THUMB", parsedValue))
+    return false;
+  GAMEPAD_RIGHT_THUMB = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_LEFT_SHOULDER", parsedValue))
+    return false;
+  GAMEPAD_LEFT_SHOULDER = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_RIGHT_SHOULDER", parsedValue))
+    return false;
+  GAMEPAD_RIGHT_SHOULDER = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_A", parsedValue))
+    return false;
+  GAMEPAD_A = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_B", parsedValue))
+    return false;
+  GAMEPAD_B = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_X", parsedValue))
+    return false;
+  GAMEPAD_X = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_Y", parsedValue))
+    return false;
+  GAMEPAD_Y = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_TRIGGER_LEFT", parsedValue))
+    return false;
+  GAMEPAD_TRIGGER_LEFT = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "GAMEPAD_TRIGGER_RIGHT", parsedValue))
+    return false;
+  GAMEPAD_TRIGGER_RIGHT = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "ON_ENABLE", parsedValue))
+    return false;
+  ON_ENABLE = parsedValue;
+  if (!tryParseConfigValue(mappingsText, "ON_DISABLE", parsedValue))
+    return false;
+  ON_DISABLE = parsedValue;
 
   notifyStatus("Applied button mappings from GUI");
   return true;
@@ -771,7 +925,7 @@ std::string NexPad::getProfileText() const
   return stream.str();
 }
 
-bool NexPad::applyProfileText(const std::string& profileText)
+bool NexPad::applyProfileText(const std::string &profileText)
 {
   if (!applyMappingsText(profileText))
   {
@@ -888,6 +1042,8 @@ void NexPad::loop()
   // Vibration
   handleVibrationButton();
 
+  updateTouchpadInteractionState();
+
   // Mouse functions
   handleMouseMovement();
   handleScrolling();
@@ -929,7 +1085,7 @@ void NexPad::loop()
         notifyStatus("Launching the On-Screen Keyboard");
         launchOsk();
       }
-      else if(IsIconic(otk_win))
+      else if (IsIconic(otk_win))
       {
         ShowWindow(otk_win, SW_RESTORE);
       }
@@ -945,8 +1101,8 @@ void NexPad::loop()
   setXboxClickState(CONFIG_SPEED_CHANGE);
   if (_xboxClickIsDown[CONFIG_SPEED_CHANGE])
   {
-    const int CHANGE_SPEED_VIBRATION_INTENSITY = 65000;   // Speed of the vibration motors when changing cursor speed.
-    const int CHANGE_SPEED_VIBRATION_DURATION = 450;      // Duration of the cursor speed change vibration in milliseconds.
+    const int CHANGE_SPEED_VIBRATION_INTENSITY = 65000; // Speed of the vibration motors when changing cursor speed.
+    const int CHANGE_SPEED_VIBRATION_DURATION = 450;    // Duration of the cursor speed change vibration in milliseconds.
 
     speed_idx++;
     if (speed_idx >= speeds.size())
@@ -1020,6 +1176,62 @@ void NexPad::loop()
   }
 }
 
+void NexPad::updateTouchpadInteractionState()
+{
+  const CXBOXController::TouchpadState touchpad = _controller->GetTouchpadState();
+  if (TOUCHPAD_ENABLED == 0 || !touchpad.available)
+  {
+    resetTouchpadInteractionState();
+    return;
+  }
+
+  if (_touchpadAwaitingReleaseAfterScroll)
+  {
+    if (!touchpad.active)
+    {
+      _touchpadAwaitingReleaseAfterScroll = false;
+      _touchpadInteractionMode = TouchpadInteractionMode::Idle;
+    }
+    else
+    {
+      _touchpadInteractionMode = TouchpadInteractionMode::Idle;
+      return;
+    }
+  }
+
+  if (touchpad.reliableTwoFinger && touchpad.activeFingerCount >= 2)
+  {
+    _touchpadInteractionMode = TouchpadInteractionMode::TwoFingerScroll;
+    _touchpadTouchWasActive = false;
+    _touchpadTapMoved = false;
+    _touchpadTapStartTick = 0;
+    return;
+  }
+
+  if (_touchpadInteractionMode == TouchpadInteractionMode::TwoFingerScroll)
+  {
+    _touchpadInteractionMode = TouchpadInteractionMode::Idle;
+    _touchpadAwaitingReleaseAfterScroll = touchpad.active;
+    _touchpadTouchWasActive = false;
+    _touchpadTapMoved = false;
+    _touchpadTapStartTick = 0;
+    _touchpadScrollXRest = 0.0f;
+    _touchpadScrollYRest = 0.0f;
+    if (_touchpadAwaitingReleaseAfterScroll)
+    {
+      return;
+    }
+  }
+
+  if (touchpad.active && touchpad.activeFingerCount == 1)
+  {
+    _touchpadInteractionMode = TouchpadInteractionMode::OneFingerCursor;
+    return;
+  }
+
+  _touchpadInteractionMode = TouchpadInteractionMode::Idle;
+}
+
 // Description:
 //   Sends a vibration pulse to the controller for a duration of time.
 //     This is a BLOCKING call. Any inputs during the vibration will be IGNORED.
@@ -1030,7 +1242,7 @@ void NexPad::loop()
 //   r          The speed (intensity) of the right vibration motor
 void NexPad::pulseVibrate(const int duration, const int l, const int r) const
 {
-  if(!_vibrationDisabled)
+  if (!_vibrationDisabled)
   {
     _controller->Vibrate(l, r);
     Sleep(duration);
@@ -1050,15 +1262,15 @@ void NexPad::handleDisableButton()
 }
 
 // Description:
-//   Toggles the vibration support after checking for the diable vibration command. 
+//   Toggles the vibration support after checking for the diable vibration command.
 //   This function will BLOCK to prevent rapidly toggling the vibration.
 void NexPad::handleVibrationButton()
 {
   setXboxClickState(CONFIG_DISABLE_VIBRATION);
   if (_xboxClickIsDown[CONFIG_DISABLE_VIBRATION])
   {
-  _vibrationDisabled = !_vibrationDisabled;
-  notifyStatus(std::string("Vibration ") + (_vibrationDisabled ? "Disabled" : "Enabled"));
+    _vibrationDisabled = !_vibrationDisabled;
+    notifyStatus(std::string("Vibration ") + (_vibrationDisabled ? "Disabled" : "Enabled"));
     Sleep(1000);
   }
 }
@@ -1074,7 +1286,7 @@ void NexPad::toggleWindowVisibility()
 
 // Description:
 //   Either hides or shows the window.
-// 
+//
 // Params:
 //   hidden   Hides the window when true
 void NexPad::setWindowVisibility(const bool &hidden) const
@@ -1099,13 +1311,15 @@ int sgn(T val)
 //   t  Analog thumbstick value to check and convert
 //
 // Returns:
-//   If the value is valid, t will be returned as-is as a float. If the value is 
+//   If the value is valid, t will be returned as-is as a float. If the value is
 //     invalid, 0 will be returned.
 float NexPad::getDelta(short t)
 {
-  //filter non-32768 and 32767, wireless ones can glitch sometimes and send it to the edge of the screen, it'll toss out some HUGE integer even when it's centered
-  if (t > 32767) t = 0;
-  if (t < -32768) t = 0;
+  // filter non-32768 and 32767, wireless ones can glitch sometimes and send it to the edge of the screen, it'll toss out some HUGE integer even when it's centered
+  if (t > 32767)
+    t = 0;
+  if (t < -32768)
+    t = 0;
 
   return t;
 }
@@ -1117,15 +1331,15 @@ float NexPad::getDelta(short t)
 //   magnitude The thumbstick magnitude in XY-plane, which is sqrt(deltaX*deltaX + deltaY*deltaY). Must be larger than deadzone.
 //   deadzone   The dead zone to use for this thumbstick
 //   accel      An exponent to use to create an input curve (Optional). 0 to use a linear input
-//   
+//
 // Returns:
 //   Multiplier used to properly scale the given thumbstick value.
 float NexPad::getMult(float magnitude, float deadzone, float accel = 0.0f)
 {
-    // Normalize the thumbstick value (result is in range 0 to 1).
-    // Note that the smallest accepted thumbstick distance is deadzone.
-    // Thus, 0% would be deadzone (and below) and 100% would be (MAXSHORT - deadzone)
-    float mult = (magnitude - deadzone) / (MAXSHORT - deadzone);
+  // Normalize the thumbstick value (result is in range 0 to 1).
+  // Note that the smallest accepted thumbstick distance is deadzone.
+  // Thus, 0% would be deadzone (and below) and 100% would be (MAXSHORT - deadzone)
+  float mult = (magnitude - deadzone) / (MAXSHORT - deadzone);
 
   // Apply a curve to the normalized thumbstick value.
   if (accel > 0.0001f)
@@ -1135,15 +1349,22 @@ float NexPad::getMult(float magnitude, float deadzone, float accel = 0.0f)
   return mult / FPS;
 }
 
-void NexPad::handleTouchpadMovement(float& dx, float& dy)
+void NexPad::handleTouchpadMovement(float &dx, float &dy)
 {
+  const float TOUCHPAD_TAP_CANCEL_CURSOR_TRAVEL = 1.5f;
+  const float TOUCHPAD_CURSOR_RESPONSE_RANGE = 24.0f;
+  const float TOUCHPAD_CURSOR_MIN_RESPONSE = 0.10f;
+
   if (TOUCHPAD_ENABLED == 0)
   {
     return;
   }
 
   const CXBOXController::TouchpadState touchpad = _controller->GetTouchpadState();
-  if (!touchpad.available || !touchpad.active)
+  if (_touchpadInteractionMode != TouchpadInteractionMode::OneFingerCursor ||
+      !touchpad.available ||
+      !touchpad.active ||
+      touchpad.activeFingerCount != 1)
   {
     return;
   }
@@ -1155,18 +1376,128 @@ void NexPad::handleTouchpadMovement(float& dx, float& dy)
     return;
   }
 
-  _touchpadTapMoved = true;
+  const float touchpadDeltaX = static_cast<float>(touchpad.deltaX);
+  const float touchpadDeltaY = static_cast<float>(touchpad.deltaY);
+  const float movementMagnitude = std::sqrt((touchpadDeltaX * touchpadDeltaX) + (touchpadDeltaY * touchpadDeltaY));
+  if (movementMagnitude <= static_cast<float>(TOUCHPAD_DEAD_ZONE))
+  {
+    return;
+  }
 
-  dx += static_cast<float>(touchpad.deltaX) * TOUCHPAD_SPEED;
-  dy -= static_cast<float>(touchpad.deltaY) * TOUCHPAD_SPEED;
+  const float adjustedMagnitude = movementMagnitude - static_cast<float>(TOUCHPAD_DEAD_ZONE);
+  const float movementScale = adjustedMagnitude / movementMagnitude;
+  float normalizedMagnitude = adjustedMagnitude / TOUCHPAD_CURSOR_RESPONSE_RANGE;
+  if (normalizedMagnitude > 1.0f)
+  {
+    normalizedMagnitude = 1.0f;
+  }
+
+  const float precisionResponse = TOUCHPAD_CURSOR_MIN_RESPONSE +
+                                  ((1.0f - TOUCHPAD_CURSOR_MIN_RESPONSE) * normalizedMagnitude * normalizedMagnitude);
+  const float cursorScale = movementScale * precisionResponse * TOUCHPAD_SPEED;
+  const float cursorDeltaX = touchpadDeltaX * cursorScale;
+  const float cursorDeltaY = touchpadDeltaY * cursorScale;
+
+  _touchpadTapCursorTravelX += cursorDeltaX;
+  _touchpadTapCursorTravelY += cursorDeltaY;
+  if (std::fabs(_touchpadTapCursorTravelX) > TOUCHPAD_TAP_CANCEL_CURSOR_TRAVEL ||
+      std::fabs(_touchpadTapCursorTravelY) > TOUCHPAD_TAP_CANCEL_CURSOR_TRAVEL)
+  {
+    _touchpadTapMoved = true;
+  }
+
+  dx += cursorDeltaX;
+  dy -= cursorDeltaY;
+}
+
+void NexPad::handleTouchpadScrolling()
+{
+  if (TOUCHPAD_ENABLED == 0)
+  {
+    _touchpadScrollRawX = 0.0f;
+    _touchpadScrollRawY = 0.0f;
+    _touchpadScrollXRest = 0.0f;
+    _touchpadScrollYRest = 0.0f;
+    return;
+  }
+
+  const CXBOXController::TouchpadState touchpad = _controller->GetTouchpadState();
+  if (_touchpadInteractionMode != TouchpadInteractionMode::TwoFingerScroll ||
+      !touchpad.available ||
+      !touchpad.active ||
+      !touchpad.reliableTwoFinger ||
+      touchpad.activeFingerCount < 2)
+  {
+    _touchpadScrollRawX = 0.0f;
+    _touchpadScrollRawY = 0.0f;
+    _touchpadScrollXRest = 0.0f;
+    _touchpadScrollYRest = 0.0f;
+    return;
+  }
+
+  short filteredDeltaX = touchpad.scrollDeltaX;
+  short filteredDeltaY = touchpad.scrollDeltaY;
+  const int magnitudeX = std::abs(static_cast<int>(filteredDeltaX));
+  const int magnitudeY = std::abs(static_cast<int>(filteredDeltaY));
+
+  if (magnitudeX == 0 && magnitudeY == 0)
+  {
+    return;
+  }
+
+  if (magnitudeX > magnitudeY * 2)
+  {
+    filteredDeltaY = 0;
+  }
+  else if (magnitudeY > magnitudeX * 2)
+  {
+    filteredDeltaX = 0;
+  }
+
+  _touchpadScrollRawX += static_cast<float>(filteredDeltaX);
+  _touchpadScrollRawY += static_cast<float>(filteredDeltaY);
+
+  const float TOUCHPAD_SCROLL_MOTION_THRESHOLD = 1.0f;
+  if (std::fabs(_touchpadScrollRawX) < TOUCHPAD_SCROLL_MOTION_THRESHOLD &&
+      std::fabs(_touchpadScrollRawY) < TOUCHPAD_SCROLL_MOTION_THRESHOLD)
+  {
+    return;
+  }
+
+  const float TOUCHPAD_SCROLL_SCALE = 96.0f;
+  const float scrollXValue = _touchpadScrollXRest + (_touchpadScrollRawX * SCROLL_SPEED * TOUCHPAD_SCROLL_SCALE);
+  const float scrollYValue = _touchpadScrollYRest - (_touchpadScrollRawY * SCROLL_SPEED * TOUCHPAD_SCROLL_SCALE);
+
+  const int scrollX = static_cast<int>(scrollXValue);
+  const int scrollY = static_cast<int>(scrollYValue);
+
+  _touchpadScrollXRest = scrollXValue - static_cast<float>(scrollX);
+  _touchpadScrollYRest = scrollYValue - static_cast<float>(scrollY);
+  _touchpadScrollRawX = 0.0f;
+  _touchpadScrollRawY = 0.0f;
+
+  if (scrollX != 0)
+  {
+    mouseEvent(MOUSEEVENTF_HWHEEL, static_cast<DWORD>(scrollX));
+  }
+  if (scrollY != 0)
+  {
+    mouseEvent(MOUSEEVENTF_WHEEL, static_cast<DWORD>(scrollY));
+  }
 }
 
 void NexPad::handleTouchpadTapGesture()
 {
-  const DWORD TOUCHPAD_TAP_MAX_DURATION_MS = 250;
+  const DWORD TOUCHPAD_TAP_MAX_DURATION_MS = 350;
   const CXBOXController::TouchpadState touchpad = _controller->GetTouchpadState();
 
   if (TOUCHPAD_ENABLED == 0 || !touchpad.available)
+  {
+    resetTouchpadInteractionState();
+    return;
+  }
+
+  if (_touchpadInteractionMode == TouchpadInteractionMode::TwoFingerScroll || _touchpadAwaitingReleaseAfterScroll)
   {
     _touchpadTouchWasActive = false;
     _touchpadTapMoved = false;
@@ -1174,13 +1505,15 @@ void NexPad::handleTouchpadTapGesture()
     return;
   }
 
-  if (touchpad.active)
+  if (touchpad.active && touchpad.activeFingerCount == 1)
   {
     if (!_touchpadTouchWasActive)
     {
       _touchpadTouchWasActive = true;
       _touchpadTapMoved = false;
       _touchpadTapStartTick = GetTickCount();
+      _touchpadTapCursorTravelX = 0.0f;
+      _touchpadTapCursorTravelY = 0.0f;
     }
 
     return;
@@ -1201,6 +1534,8 @@ void NexPad::handleTouchpadTapGesture()
   _touchpadTouchWasActive = false;
   _touchpadTapMoved = false;
   _touchpadTapStartTick = 0;
+  _touchpadTapCursorTravelX = 0.0f;
+  _touchpadTapCursorTravelY = 0.0f;
 }
 
 // Description:
@@ -1215,15 +1550,15 @@ void NexPad::handleMouseMovement()
 
   if (SWAP_THUMBSTICKS == 0)
   {
-      // Use left stick
-      tx = getDelta(_currentState.Gamepad.sThumbLX);
-      ty = getDelta(_currentState.Gamepad.sThumbLY);
+    // Use left stick
+    tx = getDelta(_currentState.Gamepad.sThumbLX);
+    ty = getDelta(_currentState.Gamepad.sThumbLY);
   }
   else
   {
-      // Use right stick
-      tx = getDelta(_currentState.Gamepad.sThumbRX);
-      ty = getDelta(_currentState.Gamepad.sThumbRY);
+    // Use right stick
+    tx = getDelta(_currentState.Gamepad.sThumbRX);
+    ty = getDelta(_currentState.Gamepad.sThumbRY);
   }
 
   float x = cursor.x + _xRest;
@@ -1237,10 +1572,10 @@ void NexPad::handleMouseMovement()
   const float deadZone = static_cast<float>(DEAD_ZONE);
   if (lengthsq > deadZone * deadZone)
   {
-      const float mult = speed * getMult(std::sqrt(lengthsq), deadZone, acceleration_factor);
+    const float mult = speed * getMult(std::sqrt(lengthsq), deadZone, acceleration_factor);
 
-      dx = tx * mult;
-      dy = ty * mult;
+    dx = tx * mult;
+    dy = ty * mult;
   }
 
   handleTouchpadMovement(dx, dy);
@@ -1251,7 +1586,7 @@ void NexPad::handleMouseMovement()
   y -= dy;
   _yRest = y - (float)((int)y);
 
-  SetCursorPos((int)x, (int)y); //after all click input processing
+  SetCursorPos((int)x, (int)y); // after all click input processing
 }
 
 // Description:
@@ -1260,7 +1595,7 @@ void NexPad::handleScrolling()
 {
   float tx;
   float ty;
-  
+
   if (SWAP_THUMBSTICKS == 0)
   {
     // Use right stick
@@ -1279,14 +1614,16 @@ void NexPad::handleScrolling()
   float magnitudeY = std::fabs(ty);
   if (magnitudeX > SCROLL_DEAD_ZONE)
   {
-      int scrollX = static_cast<int>(tx * getMult(magnitudeX, static_cast<float>(SCROLL_DEAD_ZONE)) * SCROLL_SPEED);
-      mouseEvent(MOUSEEVENTF_HWHEEL, static_cast<DWORD>(scrollX));
+    int scrollX = static_cast<int>(tx * getMult(magnitudeX, static_cast<float>(SCROLL_DEAD_ZONE)) * SCROLL_SPEED);
+    mouseEvent(MOUSEEVENTF_HWHEEL, static_cast<DWORD>(scrollX));
   }
   if (magnitudeY > SCROLL_DEAD_ZONE)
   {
-      int scrollY = static_cast<int>(ty * getMult(magnitudeY, static_cast<float>(SCROLL_DEAD_ZONE)) * SCROLL_SPEED);
-      mouseEvent(MOUSEEVENTF_WHEEL, static_cast<DWORD>(scrollY));
+    int scrollY = static_cast<int>(ty * getMult(magnitudeY, static_cast<float>(SCROLL_DEAD_ZONE)) * SCROLL_SPEED);
+    mouseEvent(MOUSEEVENTF_WHEEL, static_cast<DWORD>(scrollY));
   }
+
+  handleTouchpadScrolling();
 }
 
 // Description:
@@ -1359,7 +1696,7 @@ void NexPad::setXboxClickState(DWORD STATE)
   // Detect if the button has been held as a long press.
   if (isDown && _xboxClickStateLastIteration[STATE])
   {
-    const int LONG_PRESS_TIME = 200;  // milliseconds
+    const int LONG_PRESS_TIME = 200; // milliseconds
 
     ++_xboxClickDownLength[STATE];
     if (_xboxClickDownLength[STATE] * SLEEP_AMOUNT > LONG_PRESS_TIME)
@@ -1507,14 +1844,27 @@ void NexPad::releaseAllActiveInputs()
 
   _lTriggerPrevious = false;
   _rTriggerPrevious = false;
-  _touchpadTouchWasActive = false;
-  _touchpadTapMoved = false;
-  _touchpadTapStartTick = 0;
+  resetTouchpadInteractionState();
   _xboxClickStateLastIteration.clear();
   _xboxClickIsDown.clear();
   _xboxClickIsDownLong.clear();
   _xboxClickDownLength.clear();
   _xboxClickIsUp.clear();
+}
+
+void NexPad::resetTouchpadInteractionState()
+{
+  _touchpadTouchWasActive = false;
+  _touchpadTapMoved = false;
+  _touchpadAwaitingReleaseAfterScroll = false;
+  _touchpadTapStartTick = 0;
+  _touchpadTapCursorTravelX = 0.0f;
+  _touchpadTapCursorTravelY = 0.0f;
+  _touchpadInteractionMode = TouchpadInteractionMode::Idle;
+  _touchpadScrollRawX = 0.0f;
+  _touchpadScrollRawY = 0.0f;
+  _touchpadScrollXRest = 0.0f;
+  _touchpadScrollYRest = 0.0f;
 }
 
 // Description:
@@ -1533,8 +1883,8 @@ static BOOL CALLBACK EnumWindowsProc(HWND curWnd, LPARAM lParam)
   // Check to see if the window title matches what we are looking for.
   if (GetWindowText(curWnd, title, 256) && !_tcscmp(title, _T("On-Screen Keyboard")))
   {
-    *(HWND*)lParam = curWnd;
-    return FALSE;  // Correct window found, stop enumerating through windows.
+    *(HWND *)lParam = curWnd;
+    return FALSE; // Correct window found, stop enumerating through windows.
   }
 
   return TRUE;
@@ -1556,16 +1906,16 @@ HWND NexPad::getOskWindow()
 //   Launches the On-Screen-Keyboard
 void NexPad::launchOsk()
 {
-    PVOID OldValue = NULL;
-    Wow64DisableWow64FsRedirection(&OldValue);
-    ShellExecute((HWND)NULL, L"open", L"osk.exe", NULL, NULL, SW_SHOWNORMAL);
+  PVOID OldValue = NULL;
+  Wow64DisableWow64FsRedirection(&OldValue);
+  ShellExecute((HWND)NULL, L"open", L"osk.exe", NULL, NULL, SW_SHOWNORMAL);
 }
 
 // Description:
 //   Removes an entry for a pressed key from the list.
 //
 // Params:
-//   key  The key value to remove from the pressed key list. 
+//   key  The key value to remove from the pressed key list.
 //
 // Returns:
 //   True if the given key was found and removed from the list.
