@@ -77,7 +77,7 @@ Typical usage flow:
 4. Use the Status tab to quickly enable or disable mapping.
 5. Use the Settings and Mappings tabs to adjust live behavior and save presets.
 
-If you want NexPad available at boot for a couch or HTPC setup, add a shortcut to your Startup folder after you confirm your config behaves the way you want.
+If you want NexPad available at boot for a couch or HTPC setup, enable Start with Windows from the Settings tab after you confirm your config behaves the way you want.
 
 Default Controls
 ======
@@ -138,6 +138,7 @@ Important config groups:
 * `ON_ENABLE` and `ON_DISABLE`: optional key events when mapping is toggled
 * `CURSOR_SPEED`, `SCROLL_SPEED`, `SWAP_THUMBSTICKS`, and dead-zone values: movement behavior
 * `TOUCHPAD_ENABLED`, `TOUCHPAD_DEAD_ZONE`, and `TOUCHPAD_SPEED`: DualSense touchpad mouse input behavior
+* `START_WITH_WINDOWS`: whether NexPad registers itself to launch for the current user at Windows sign-in
 
 DualSense touchpad support
 ======

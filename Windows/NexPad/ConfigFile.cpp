@@ -156,6 +156,7 @@ void ConfigFile::ExtractKeys()
     outfile << "TOUCHPAD_ENABLED = 1 # Enable DualSense touchpad cursor, tap, and two-finger scroll gestures (0 = disabled, 1 = enabled)." << std::endl;
     outfile << "TOUCHPAD_DEAD_ZONE = 2 # Minimum per-frame touchpad movement before cursor or two-finger scroll motion is applied." << std::endl;
     outfile << "TOUCHPAD_SPEED = 1.200 # Sensitivity multiplier for DualSense one-finger touchpad cursor movement." << std::endl;
+    outfile << "START_WITH_WINDOWS = 0 # Launch NexPad at Windows sign-in for the current user (0 = disabled, 1 = enabled)." << std::endl;
     outfile << "INIT_DISABLED = 0 # Start NexPad Disabled (1 for disabled, 0 for enabled)" << std::endl;
 
     // End config dump

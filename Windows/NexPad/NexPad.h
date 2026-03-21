@@ -46,6 +46,7 @@ private:
   const int FPS = 150;                 // Update rate of the main NexPad loop. Interpreted as cycles-per-second.
   const int SLEEP_AMOUNT = 1000 / FPS; // Number of milliseconds to sleep per iteration.
   int SWAP_THUMBSTICKS = 0;            // Swaps the function of the thumbsticks when not equal to 0.
+  int START_WITH_WINDOWS = 0;          // Registers NexPad to launch at Windows sign-in for the current user when non-zero.
 
   XINPUT_STATE _currentState;
 
@@ -216,7 +217,11 @@ public:
 
   int getSwapThumbsticks() const;
 
+  int getStartWithWindows() const;
+
   void setSwapThumbsticks(int value);
+
+  bool setStartWithWindows(int value, std::string &errorMessage);
 
   const std::string &getConfigPath() const;
 
@@ -237,6 +242,8 @@ public:
   bool setMappingValue(const std::string &key, DWORD value);
 
 private:
+  bool applyStartWithWindowsSetting(bool enabled, bool notify, std::string *errorMessage);
+
   void resetTouchpadInteractionState();
 
   void releaseAllActiveInputs();

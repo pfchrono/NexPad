@@ -67,6 +67,7 @@ namespace
     IDC_TOUCHPAD_DEAD_ZONE_EDIT,
     IDC_TOUCHPAD_CHECK,
     IDC_SWAP_CHECK,
+    IDC_START_WITH_WINDOWS_CHECK,
     IDC_PRESET_LIST,
     IDC_PRESET_NAME_EDIT,
     IDC_PRESET_REFRESH_BUTTON,
@@ -122,6 +123,7 @@ namespace
     HWND touchpadDeadZoneEdit = NULL;
     HWND touchpadCheck = NULL;
     HWND swapCheck = NULL;
+    HWND startWithWindowsCheck = NULL;
     HWND presetList = NULL;
     HWND presetNameEdit = NULL;
     HWND presetRefreshButton = NULL;
@@ -1241,9 +1243,9 @@ namespace
       borderColor = RGB(220, 220, 220);
     }
 
-    if (drawItem->hwndItem == state->swapCheck)
+    if (drawItem->hwndItem == state->touchpadCheck || drawItem->hwndItem == state->swapCheck || drawItem->hwndItem == state->startWithWindowsCheck)
     {
-      const bool checked = SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED;
+      const bool checked = SendMessage(drawItem->hwndItem, BM_GETCHECK, 0, 0) == BST_CHECKED;
       HBRUSH backgroundBrush = CreateSolidBrush(fillColor);
       FillRect(dc, &rect, backgroundBrush);
       DeleteObject(backgroundBrush);
@@ -1531,7 +1533,7 @@ namespace
     stream << "- Xbox 360 / One / Series through XInput on Windows 10/11\r\n";
     stream << "- PlayStation 5 DualSense through XInput bridge tools or native HID fallback\r\n\r\n";
     stream << "Tip - Press left and right bumpers simultaneously to toggle speeds.\r\n";
-    stream << "Tip - Use the Settings tab to change speed presets, scroll speed, and thumbstick swap live.\r\n";
+    stream << "Tip - Use the Settings tab to change speed presets, scroll speed, touchpad settings, thumbstick swap, and Start with Windows.\r\n";
     stream << "Tip - Minimize the window to keep NexPad running in the notification area.\r\n";
 
     if (!isRunningAsAdministrator())
@@ -1844,6 +1846,7 @@ namespace
 
     SendMessage(state->touchpadCheck, BM_SETCHECK, state->nexPad.getTouchpadEnabled() ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessage(state->swapCheck, BM_SETCHECK, state->nexPad.getSwapThumbsticks() ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessage(state->startWithWindowsCheck, BM_SETCHECK, state->nexPad.getStartWithWindows() ? BST_CHECKED : BST_UNCHECKED, 0);
   }
 
   void populatePresetList(HWND window)
@@ -2028,20 +2031,21 @@ namespace
     applyEditPadding(state->touchpadDeadZoneEdit, 6, 0);
     MoveWindow(state->touchpadCheck, margin, margin + 224, pageWidth - margin * 2, 24, TRUE);
     MoveWindow(state->swapCheck, margin, margin + 256, pageWidth - margin * 2, 24, TRUE);
-    MoveWindow(state->applyButton, margin, margin + 296, 130, 28, TRUE);
-    MoveWindow(state->saveButton, margin + 142, margin + 296, 130, 28, TRUE);
-    MoveWindow(state->reloadButton, margin + 284, margin + 296, 130, 28, TRUE);
-    MoveWindow(state->presetListLabel, margin, margin + 350, 160, labelHeight, TRUE);
-    MoveWindow(state->presetList, margin, margin + 370, 260, 220, TRUE);
-    MoveWindow(state->presetNameLabel, margin + 272, margin + 350, 160, labelHeight, TRUE);
-    MoveWindow(state->presetNameEdit, margin + 272, margin + 370, 220, 24, TRUE);
+    MoveWindow(state->startWithWindowsCheck, margin, margin + 288, pageWidth - margin * 2, 24, TRUE);
+    MoveWindow(state->applyButton, margin, margin + 328, 130, 28, TRUE);
+    MoveWindow(state->saveButton, margin + 142, margin + 328, 130, 28, TRUE);
+    MoveWindow(state->reloadButton, margin + 284, margin + 328, 130, 28, TRUE);
+    MoveWindow(state->presetListLabel, margin, margin + 382, 160, labelHeight, TRUE);
+    MoveWindow(state->presetList, margin, margin + 402, 260, 220, TRUE);
+    MoveWindow(state->presetNameLabel, margin + 272, margin + 382, 160, labelHeight, TRUE);
+    MoveWindow(state->presetNameEdit, margin + 272, margin + 402, 220, 24, TRUE);
     applyEditPadding(state->presetNameEdit, 6, 0);
-    MoveWindow(state->presetSaveButton, margin + 504, margin + 368, 110, 28, TRUE);
-    MoveWindow(state->presetRefreshButton, margin + 272, margin + 404, 110, 28, TRUE);
-    MoveWindow(state->presetDeleteButton, margin + 394, margin + 404, 110, 28, TRUE);
-    MoveWindow(state->importButton, margin + 272, margin + 438, 110, 28, TRUE);
-    MoveWindow(state->exportButton, margin + 394, margin + 438, 110, 28, TRUE);
-    MoveWindow(state->settingsNote, margin, margin + 484, pageWidth - margin * 2, 36, TRUE);
+    MoveWindow(state->presetSaveButton, margin + 504, margin + 400, 110, 28, TRUE);
+    MoveWindow(state->presetRefreshButton, margin + 272, margin + 436, 110, 28, TRUE);
+    MoveWindow(state->presetDeleteButton, margin + 394, margin + 436, 110, 28, TRUE);
+    MoveWindow(state->importButton, margin + 272, margin + 470, 110, 28, TRUE);
+    MoveWindow(state->exportButton, margin + 394, margin + 470, 110, 28, TRUE);
+    MoveWindow(state->settingsNote, margin, margin + 516, pageWidth - margin * 2, 36, TRUE);
 
     MoveWindow(state->mappingsHelp, margin, margin, helpWidth, pageHeight - margin * 2, TRUE);
     applyEditPadding(state->mappingsHelp);
@@ -2101,9 +2105,20 @@ namespace
 
     state->nexPad.setTouchpadEnabled(SendMessage(state->touchpadCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     state->nexPad.setSwapThumbsticks(SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
+
+    const int desiredStartWithWindows = SendMessage(state->startWithWindowsCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0;
+    std::string startupError;
+    const bool startupUpdated = state->nexPad.setStartWithWindows(desiredStartWithWindows, startupError);
     state->nexPad.saveConfigFile();
+    if (!startupUpdated)
+    {
+      const std::string logMessage = std::string("Unable to update Start with Windows: ") + startupError;
+      appendOutput(window, logMessage);
+      MessageBoxA(window, logMessage.c_str(), "NexPad", MB_OK | MB_ICONERROR);
+      populateSettingsControls(window);
+    }
     updateStatusControls(window);
-    appendOutput(window, "Applied and auto-saved live settings.");
+    appendOutput(window, startupUpdated ? "Applied and auto-saved live settings." : "Applied settings and kept the previous Start with Windows state.");
   }
 
   void reloadConfig(HWND window)
@@ -2424,6 +2439,8 @@ namespace
                                              0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_CHECK), createStruct->hInstance, NULL);
       state->swapCheck = CreateWindowExA(0, "BUTTON", "Swap thumbsticks", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
                                          0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SWAP_CHECK), createStruct->hInstance, NULL);
+      state->startWithWindowsCheck = CreateWindowExA(0, "BUTTON", "Start NexPad with Windows", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                         0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_START_WITH_WINDOWS_CHECK), createStruct->hInstance, NULL);
       state->presetListLabel = CreateWindowExA(0, "STATIC", "Preset list", WS_CHILD | WS_VISIBLE,
                                                12, 292, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
       state->presetList = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
@@ -2475,7 +2492,7 @@ namespace
                      {state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText, state->versionText,
                       state->toggleButton,
                       state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit, state->touchpadSpeedLabel, state->touchpadSpeedEdit, state->touchpadDeadZoneLabel, state->touchpadDeadZoneEdit,
-                      state->touchpadCheck, state->swapCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
+                      state->touchpadCheck, state->swapCheck, state->startWithWindowsCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
                       state->applyButton, state->saveButton, state->reloadButton, state->importButton, state->exportButton, state->settingsNote,
                       state->mappingsHelp, state->mappingKeyCombo, state->mappingValueCombo, state->mappingDescription, state->applyMappingButton});
 
@@ -2491,6 +2508,7 @@ namespace
       applyControlTheme(state->speedCombo);
       applyControlTheme(state->touchpadCheck);
       applyControlTheme(state->swapCheck);
+      applyControlTheme(state->startWithWindowsCheck);
       applyControlTheme(state->applyButton);
       applyControlTheme(state->saveButton);
       applyControlTheme(state->reloadButton);
@@ -2515,6 +2533,7 @@ namespace
       SetWindowSubclass(state->toggleButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
       SetWindowSubclass(state->touchpadCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
       SetWindowSubclass(state->swapCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+      SetWindowSubclass(state->startWithWindowsCheck, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
       SetWindowSubclass(state->applyButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
       SetWindowSubclass(state->saveButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
       SetWindowSubclass(state->reloadButton, buttonSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
@@ -2634,6 +2653,15 @@ namespace
           const LRESULT checked = SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
           SendMessage(state->swapCheck, BM_SETCHECK, checked, 0);
           InvalidateRect(state->swapCheck, NULL, TRUE);
+        }
+        return 0;
+
+      case IDC_START_WITH_WINDOWS_CHECK:
+        if (HIWORD(wParam) == BN_CLICKED)
+        {
+          const LRESULT checked = SendMessage(state->startWithWindowsCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
+          SendMessage(state->startWithWindowsCheck, BM_SETCHECK, checked, 0);
+          InvalidateRect(state->startWithWindowsCheck, NULL, TRUE);
         }
         return 0;
 
@@ -2762,7 +2790,9 @@ namespace
         RemoveWindowSubclass(state->mappingsPage, pageSubclassProc, 1);
         RemoveWindowSubclass(state->batteryBar, batteryBarSubclassProc, 1);
         RemoveWindowSubclass(state->toggleButton, buttonSubclassProc, 1);
+        RemoveWindowSubclass(state->touchpadCheck, buttonSubclassProc, 1);
         RemoveWindowSubclass(state->swapCheck, buttonSubclassProc, 1);
+        RemoveWindowSubclass(state->startWithWindowsCheck, buttonSubclassProc, 1);
         RemoveWindowSubclass(state->applyButton, buttonSubclassProc, 1);
         RemoveWindowSubclass(state->saveButton, buttonSubclassProc, 1);
         RemoveWindowSubclass(state->reloadButton, buttonSubclassProc, 1);

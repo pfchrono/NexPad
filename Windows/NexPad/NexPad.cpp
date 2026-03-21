@@ -7,6 +7,9 @@
 
 namespace
 {
+  const char *kStartupRunKeyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+  const char *kStartupRunValueName = "NexPad";
+
   std::string getExecutableDirectory()
   {
     char path[MAX_PATH] = {};
@@ -24,6 +27,18 @@ namespace
     }
 
     return fullPath.substr(0, separator);
+  }
+
+  std::string getExecutablePath()
+  {
+    char path[MAX_PATH] = {};
+    const DWORD length = GetModuleFileNameA(NULL, path, MAX_PATH);
+    if (length == 0 || length >= MAX_PATH)
+    {
+      return std::string();
+    }
+
+    return std::string(path, length);
   }
 
   std::string joinPath(const std::string &left, const std::string &right)
@@ -152,6 +167,195 @@ namespace
     }
 
     return false;
+  }
+
+  std::string trimWhitespace(const std::string &text)
+  {
+    const size_t start = text.find_first_not_of("\t \r\n");
+    if (start == std::string::npos)
+    {
+      return std::string();
+    }
+
+    const size_t end = text.find_last_not_of("\t \r\n");
+    return text.substr(start, end - start + 1);
+  }
+
+  std::string extractExecutablePathFromCommand(const std::string &command)
+  {
+    const std::string trimmed = trimWhitespace(command);
+    if (trimmed.empty())
+    {
+      return std::string();
+    }
+
+    if (trimmed[0] == '"')
+    {
+      const size_t closingQuote = trimmed.find('"', 1);
+      if (closingQuote != std::string::npos)
+      {
+        return trimmed.substr(1, closingQuote - 1);
+      }
+    }
+
+    const size_t firstWhitespace = trimmed.find_first_of("\t ");
+    if (firstWhitespace == std::string::npos)
+    {
+      return trimmed;
+    }
+
+    return trimmed.substr(0, firstWhitespace);
+  }
+
+  std::string formatWindowsErrorMessage(const LONG errorCode)
+  {
+    LPSTR buffer = NULL;
+    const DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+    const DWORD length = FormatMessageA(flags, NULL, static_cast<DWORD>(errorCode), 0, reinterpret_cast<LPSTR>(&buffer), 0, NULL);
+    if (length == 0 || buffer == NULL)
+    {
+      std::ostringstream fallback;
+      fallback << "Windows error " << errorCode;
+      return fallback.str();
+    }
+
+    std::string message(buffer, length);
+    LocalFree(buffer);
+    return trimWhitespace(message);
+  }
+
+  bool queryStartWithWindowsRegistration(std::string &registeredCommand, std::string *errorMessage)
+  {
+    registeredCommand.clear();
+
+    HKEY runKey = NULL;
+    const LONG openStatus = RegOpenKeyExA(HKEY_CURRENT_USER, kStartupRunKeyPath, 0, KEY_QUERY_VALUE, &runKey);
+    if (openStatus == ERROR_FILE_NOT_FOUND)
+    {
+      return false;
+    }
+
+    if (openStatus != ERROR_SUCCESS)
+    {
+      if (errorMessage != NULL)
+      {
+        *errorMessage = formatWindowsErrorMessage(openStatus);
+      }
+      return false;
+    }
+
+    char valueBuffer[2048] = {};
+    DWORD valueType = 0;
+    DWORD valueSize = sizeof(valueBuffer);
+    const LONG queryStatus = RegQueryValueExA(runKey, kStartupRunValueName, NULL, &valueType, reinterpret_cast<LPBYTE>(valueBuffer), &valueSize);
+    RegCloseKey(runKey);
+
+    if (queryStatus == ERROR_FILE_NOT_FOUND)
+    {
+      return false;
+    }
+
+    if (queryStatus != ERROR_SUCCESS)
+    {
+      if (errorMessage != NULL)
+      {
+        *errorMessage = formatWindowsErrorMessage(queryStatus);
+      }
+      return false;
+    }
+
+    if (valueType != REG_SZ && valueType != REG_EXPAND_SZ)
+    {
+      if (errorMessage != NULL)
+      {
+        *errorMessage = "Startup registration exists but is not a string value.";
+      }
+      return false;
+    }
+
+    registeredCommand = trimWhitespace(valueBuffer);
+    return !registeredCommand.empty();
+  }
+
+  bool isCurrentExecutableRegisteredForStartup(std::string *registeredCommand, std::string *errorMessage)
+  {
+    std::string startupCommand;
+    if (!queryStartWithWindowsRegistration(startupCommand, errorMessage))
+    {
+      if (registeredCommand != NULL)
+      {
+        registeredCommand->clear();
+      }
+      return false;
+    }
+
+    if (registeredCommand != NULL)
+    {
+      *registeredCommand = startupCommand;
+    }
+
+    const std::string registeredPath = extractExecutablePathFromCommand(startupCommand);
+    const std::string executablePath = getExecutablePath();
+    if (registeredPath.empty() || executablePath.empty())
+    {
+      return false;
+    }
+
+    return _stricmp(registeredPath.c_str(), executablePath.c_str()) == 0;
+  }
+
+  bool writeStartWithWindowsRegistration(const bool enabled, std::string *errorMessage)
+  {
+    HKEY runKey = NULL;
+    DWORD disposition = 0;
+    const LONG createStatus = RegCreateKeyExA(HKEY_CURRENT_USER, kStartupRunKeyPath, 0, NULL, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, NULL, &runKey, &disposition);
+    if (createStatus != ERROR_SUCCESS)
+    {
+      if (errorMessage != NULL)
+      {
+        *errorMessage = formatWindowsErrorMessage(createStatus);
+      }
+      return false;
+    }
+
+    LONG writeStatus = ERROR_SUCCESS;
+    if (enabled)
+    {
+      const std::string executablePath = getExecutablePath();
+      if (executablePath.empty())
+      {
+        RegCloseKey(runKey);
+        if (errorMessage != NULL)
+        {
+          *errorMessage = "Unable to resolve the current NexPad executable path.";
+        }
+        return false;
+      }
+
+      const std::string command = "\"" + executablePath + "\"";
+      writeStatus = RegSetValueExA(runKey, kStartupRunValueName, 0, REG_SZ, reinterpret_cast<const BYTE *>(command.c_str()), static_cast<DWORD>(command.size() + 1));
+    }
+    else
+    {
+      writeStatus = RegDeleteValueA(runKey, kStartupRunValueName);
+      if (writeStatus == ERROR_FILE_NOT_FOUND)
+      {
+        writeStatus = ERROR_SUCCESS;
+      }
+    }
+
+    RegCloseKey(runKey);
+
+    if (writeStatus != ERROR_SUCCESS)
+    {
+      if (errorMessage != NULL)
+      {
+        *errorMessage = formatWindowsErrorMessage(writeStatus);
+      }
+      return false;
+    }
+
+    return true;
   }
 }
 
@@ -305,6 +509,11 @@ int NexPad::getSwapThumbsticks() const
   return SWAP_THUMBSTICKS;
 }
 
+int NexPad::getStartWithWindows() const
+{
+  return START_WITH_WINDOWS;
+}
+
 const std::string &NexPad::getConfigPath() const
 {
   return _configPath;
@@ -369,6 +578,49 @@ void NexPad::setSwapThumbsticks(int value)
 {
   SWAP_THUMBSTICKS = value ? 1 : 0;
   notifyStatus(std::string("Swap thumbsticks ") + (SWAP_THUMBSTICKS ? "Enabled" : "Disabled"));
+}
+
+bool NexPad::applyStartWithWindowsSetting(bool enabled, bool notify, std::string *errorMessage)
+{
+  if (errorMessage != NULL)
+  {
+    errorMessage->clear();
+  }
+
+  std::string registryError;
+  if (!writeStartWithWindowsRegistration(enabled, &registryError))
+  {
+    std::string currentCommand;
+    START_WITH_WINDOWS = isCurrentExecutableRegisteredForStartup(&currentCommand, NULL) ? 1 : 0;
+    if (errorMessage != NULL)
+    {
+      *errorMessage = registryError;
+    }
+    return false;
+  }
+
+  std::string currentCommand;
+  START_WITH_WINDOWS = isCurrentExecutableRegisteredForStartup(&currentCommand, NULL) ? 1 : 0;
+  if (enabled && START_WITH_WINDOWS == 0)
+  {
+    if (errorMessage != NULL)
+    {
+      *errorMessage = "Startup registration did not match the current NexPad executable path after saving.";
+    }
+    return false;
+  }
+
+  if (notify)
+  {
+    notifyStatus(std::string("Start with Windows ") + (START_WITH_WINDOWS ? "Enabled" : "Disabled"));
+  }
+
+  return true;
+}
+
+bool NexPad::setStartWithWindows(int value, std::string &errorMessage)
+{
+  return applyStartWithWindowsSetting(value != 0, true, &errorMessage);
 }
 
 void NexPad::notifyStatus(const std::string &message) const
@@ -462,6 +714,13 @@ void NexPad::loadConfigFile()
   if (TOUCHPAD_SPEED < 0.00001f)
   {
     TOUCHPAD_SPEED = 1.2f;
+  }
+
+  START_WITH_WINDOWS = strtol(cfg.getValueOfKey<std::string>("START_WITH_WINDOWS", "0").c_str(), 0, 0) != 0 ? 1 : 0;
+  std::string startupError;
+  if (!applyStartWithWindowsSetting(START_WITH_WINDOWS != 0, false, &startupError))
+  {
+    notifyStatus("Unable to sync Start with Windows setting: " + startupError);
   }
 
   unsigned int configuredSpeedIndex = static_cast<unsigned int>(strtoul(cfg.getValueOfKey<std::string>("CURRENT_SPEED_INDEX", "0").c_str(), 0, 0));
@@ -744,6 +1003,7 @@ bool NexPad::saveConfigFile()
   std::ostringstream touchpadSpeedValue;
   touchpadSpeedValue << std::fixed << std::setprecision(3) << TOUCHPAD_SPEED;
   updateConfigLine(lines, "TOUCHPAD_SPEED", touchpadSpeedValue.str());
+  updateConfigLine(lines, "START_WITH_WINDOWS", std::to_string(START_WITH_WINDOWS));
   updateConfigLine(lines, "CONFIG_MOUSE_LEFT", formatHexValue(CONFIG_MOUSE_LEFT));
   updateConfigLine(lines, "CONFIG_MOUSE_RIGHT", formatHexValue(CONFIG_MOUSE_RIGHT));
   updateConfigLine(lines, "CONFIG_MOUSE_MIDDLE", formatHexValue(CONFIG_MOUSE_MIDDLE));
