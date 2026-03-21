@@ -2,6 +2,21 @@
 // Microsoft Visual C++ generated include file.
 // Used by Resource.rc
 //
+#ifndef NEXPAD_VERSION_VALUE
+#define NEXPAD_VERSION_VALUE local
+#endif
+
+#define NEXPAD_STRINGIZE_HELPER(value) #value
+#define NEXPAD_STRINGIZE(value) NEXPAD_STRINGIZE_HELPER(value)
+
+#ifndef NEXPAD_FILE_VERSION
+#define NEXPAD_FILE_VERSION 0,0,0,0
+#endif
+
+#ifndef NEXPAD_PRODUCT_VERSION
+#define NEXPAD_PRODUCT_VERSION NEXPAD_FILE_VERSION
+#endif
+
 #define IDI_ICON1                       101
 
 // Next default values for new objects

@@ -70,6 +70,18 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <NexPadVersion Condition="'$(NexPadVersion)'==''">local</NexPadVersion>
+    <NexPadVersionMetadataString>$(NexPadVersion)</NexPadVersionMetadataString>
+    <NexPadVersionCore>$([System.Text.RegularExpressions.Regex]::Replace('$(NexPadVersion)', '^[vV]', ''))</NexPadVersionCore>
+    <NexPadVersionIsNumeric>$([System.Text.RegularExpressions.Regex]::IsMatch('$(NexPadVersionCore)', '^\d+(?:\.\d+){0,3}$'))</NexPadVersionIsNumeric>
+    <NexPadVersionMajor Condition="'$(NexPadVersionIsNumeric)'=='True'">$([System.Text.RegularExpressions.Regex]::Match('$(NexPadVersionCore)', '^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?$').Groups[1].Value)</NexPadVersionMajor>
+    <NexPadVersionMajor Condition="'$(NexPadVersionMajor)'==''">0</NexPadVersionMajor>
+    <NexPadVersionMinor Condition="'$(NexPadVersionIsNumeric)'=='True'">$([System.Text.RegularExpressions.Regex]::Match('$(NexPadVersionCore)', '^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?$').Groups[2].Value)</NexPadVersionMinor>
+    <NexPadVersionMinor Condition="'$(NexPadVersionMinor)'==''">0</NexPadVersionMinor>
+    <NexPadVersionPatch Condition="'$(NexPadVersionIsNumeric)'=='True'">$([System.Text.RegularExpressions.Regex]::Match('$(NexPadVersionCore)', '^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?$').Groups[3].Value)</NexPadVersionPatch>
+    <NexPadVersionPatch Condition="'$(NexPadVersionPatch)'==''">0</NexPadVersionPatch>
+    <NexPadVersionBuild Condition="'$(NexPadVersionIsNumeric)'=='True'">$([System.Text.RegularExpressions.Regex]::Match('$(NexPadVersionCore)', '^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?$').Groups[4].Value)</NexPadVersionBuild>
+    <NexPadVersionBuild Condition="'$(NexPadVersionBuild)'==''">0</NexPadVersionBuild>
+    <NexPadVersionNumeric>$(NexPadVersionMajor),$(NexPadVersionMinor),$(NexPadVersionPatch),$(NexPadVersionBuild)</NexPadVersionNumeric>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -101,6 +113,9 @@
       <ProgramDataBaseFileName>$(IntDir)vc143.pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NEXPAD_VERSION=&quot;$(NexPadVersion)&quot;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NEXPAD_VERSION_VALUE=$(NexPadVersionMetadataString);NEXPAD_FILE_VERSION=$(NexPadVersionNumeric);NEXPAD_PRODUCT_VERSION=$(NexPadVersionNumeric);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -124,6 +139,9 @@ xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul</Command>
       <ProgramDataBaseFileName>$(IntDir)vc143.pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;NEXPAD_VERSION=&quot;$(NexPadVersion)&quot;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;NEXPAD_VERSION_VALUE=$(NexPadVersionMetadataString);NEXPAD_FILE_VERSION=$(NexPadVersionNumeric);NEXPAD_PRODUCT_VERSION=$(NexPadVersionNumeric);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -149,6 +167,9 @@ xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul</Command>
       <ProgramDataBaseFileName>$(IntDir)vc143.pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NEXPAD_VERSION=&quot;$(NexPadVersion)&quot;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NEXPAD_VERSION_VALUE=$(NexPadVersionMetadataString);NEXPAD_FILE_VERSION=$(NexPadVersionNumeric);NEXPAD_PRODUCT_VERSION=$(NexPadVersionNumeric);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -172,6 +193,9 @@ xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul</Command>
       <ProgramDataBaseFileName>$(IntDir)vc143.pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;NEXPAD_VERSION=&quot;$(NexPadVersion)&quot;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;NEXPAD_VERSION_VALUE=$(NexPadVersionMetadataString);NEXPAD_FILE_VERSION=$(NexPadVersionNumeric);NEXPAD_PRODUCT_VERSION=$(NexPadVersionNumeric);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
