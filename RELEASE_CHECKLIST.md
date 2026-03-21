@@ -32,6 +32,15 @@ Build and package
 4. Verify the checksum files reference the matching zip file names and contain SHA256 hashes.
 5. Smoke-test at least one packaged build on a clean directory.
 
+Controller hardware validation matrix
+======
+
+Run through the release matrix in `docs/controller-compatibility.md` and record outcomes:
+
+1. Confirm the required rows for the release scope are marked `PASS`.
+2. Document any `FAIL` or `N/A` rows with rationale in the draft release notes.
+3. If controller-surface changes shipped, include explicit USB and Bluetooth validation notes where applicable.
+
 GitHub workflow
 ======
 

@@ -13,6 +13,7 @@ Validation
 ======
 
 * List the builds, smoke tests, or other verification steps completed for this release.
+* Include controller hardware validation outcomes using `docs/controller-compatibility.md` when controller behavior or transport paths are in scope.
 
 Included Assets
 ======

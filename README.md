@@ -18,6 +18,7 @@ Table of contents
   * [Usage](#usage)
   * [Default Controls](#default-controls)
   * [Controller Support](#controller-support)
+  * [Controller Compatibility](#controller-compatibility)
   * [Configuration](#configuration)
   * [DualSense Touchpad Support](#dualsense-touchpad-support)
   * [Screenshots](#screenshots)
@@ -123,6 +124,11 @@ Third-party controllers
 
 * Many third-party pads work if they present themselves as XInput-compatible devices
 * Research your specific controller before relying on it for a living-room setup
+
+Controller compatibility
+======
+
+For a detailed compatibility matrix, known transport limitations, troubleshooting flows, and a reusable release hardware-validation matrix, see `docs/controller-compatibility.md`.
 
 Configuration
 ======
