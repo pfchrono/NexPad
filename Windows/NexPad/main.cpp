@@ -2440,7 +2440,7 @@ namespace
       state->swapCheck = CreateWindowExA(0, "BUTTON", "Swap thumbsticks", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
                                          0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SWAP_CHECK), createStruct->hInstance, NULL);
       state->startWithWindowsCheck = CreateWindowExA(0, "BUTTON", "Start NexPad with Windows", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-                         0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_START_WITH_WINDOWS_CHECK), createStruct->hInstance, NULL);
+                                                     0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_START_WITH_WINDOWS_CHECK), createStruct->hInstance, NULL);
       state->presetListLabel = CreateWindowExA(0, "STATIC", "Preset list", WS_CHILD | WS_VISIBLE,
                                                12, 292, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
       state->presetList = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
