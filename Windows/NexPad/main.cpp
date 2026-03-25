@@ -2782,6 +2782,23 @@ namespace
           const LRESULT checked = SendMessage(state->startWithWindowsCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
           SendMessage(state->startWithWindowsCheck, BM_SETCHECK, checked, 0);
           InvalidateRect(state->startWithWindowsCheck, NULL, TRUE);
+          std::string startupError;
+          const bool ok = state->nexPad.setStartWithWindows(checked == BST_CHECKED ? 1 : 0, startupError);
+          if (!ok)
+          {
+            SendMessage(state->startWithWindowsCheck, BM_SETCHECK,
+                        checked == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED, 0);
+            InvalidateRect(state->startWithWindowsCheck, NULL, TRUE);
+            const std::string msg = std::string("Unable to update Start with Windows: ") + startupError;
+            appendOutput(window, msg);
+            MessageBoxA(window, msg.c_str(), "NexPad", MB_OK | MB_ICONERROR);
+          }
+          else
+          {
+            state->nexPad.saveConfigFile();
+            updateStatusControls(window);
+            appendOutput(window, checked == BST_CHECKED ? "Start with Windows: on." : "Start with Windows: off.");
+          }
         }
         return 0;
 
