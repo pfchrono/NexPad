@@ -186,6 +186,12 @@ public:
 
   void setXboxClickState(DWORD state);
 
+  bool isButtonDown(DWORD key) const;
+
+  bool isButtonUp(DWORD key) const;
+
+  bool isButtonDownLong(DWORD key) const;
+
   HWND getOskWindow();
 
   void launchOsk();

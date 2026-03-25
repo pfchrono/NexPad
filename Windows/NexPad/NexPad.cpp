@@ -2357,3 +2357,18 @@ bool NexPad::erasePressedKey(WORD key)
 
   return false;
 }
+
+bool NexPad::isButtonDown(DWORD key) const {
+    auto it = _xboxClickIsDown.find(key);
+    return it != _xboxClickIsDown.end() && it->second;
+}
+
+bool NexPad::isButtonUp(DWORD key) const {
+    auto it = _xboxClickIsUp.find(key);
+    return it != _xboxClickIsUp.end() && it->second;
+}
+
+bool NexPad::isButtonDownLong(DWORD key) const {
+    auto it = _xboxClickIsDownLong.find(key);
+    return it != _xboxClickIsDownLong.end() && it->second;
+}
