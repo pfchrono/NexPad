@@ -1855,6 +1855,12 @@ namespace
     setTextIfChanged(state->scrollText, state->cachedScrollText, scrollStream.str());
 
     setTextIfChanged(state->configText, state->cachedConfigText, "Config: " + state->nexPad.getConfigPath());
+    setTextIfChanged(state->touchpadStatusText, state->cachedTouchpadStatusText,
+                     std::string("Touchpad: ") + (state->nexPad.getTouchpadEnabled() ? "Enabled" : "Disabled"));
+    setTextIfChanged(state->swapStatusText, state->cachedSwapStatusText,
+                     std::string("Swap thumbsticks: ") + (state->nexPad.getSwapThumbsticks() ? "On" : "Off"));
+    setTextIfChanged(state->startWithWindowsStatusText, state->cachedStartWithWindowsStatusText,
+                     std::string("Start with Windows: ") + (state->nexPad.getStartWithWindows() ? "On" : "Off"));
     setTextIfChanged(state->versionText, state->cachedVersionText, getDisplayVersionText());
     setTextIfChanged(state->toggleButton, state->cachedToggleButtonText, state->nexPad.isDisabled() ? "Enable NexPad" : "Disable NexPad");
     updateTrayTooltip(window);
