@@ -74,9 +74,12 @@ else
 
 ## Change 2: Status tab labels (`main.cpp`)
 
-### IDC enum — add three constants (after `IDC_SETTINGS_NOTE`)
+### IDC enum — add three constants (after `IDC_SETTINGS_NOTE`, ~line 91)
+
+`IDC_SETTINGS_NOTE` currently has no trailing comma. Add a comma to it, then append the three new entries before the closing `};`:
 
 ```cpp
+IDC_SETTINGS_NOTE,   // add comma here
 IDC_TOUCHPAD_STATUS_TEXT,
 IDC_SWAP_STATUS_TEXT,
 IDC_START_WITH_WINDOWS_STATUS_TEXT,
@@ -98,7 +101,9 @@ std::string cachedSwapStatusText;
 std::string cachedStartWithWindowsStatusText;
 ```
 
-### Status page creation — add three STATIC controls (after `configText` creation at ~line 2496)
+### Status page creation — add three STATIC controls (after `configText` `CreateWindowExA` call, ~line 2496)
+
+The `CreateWindowExA` calls for status controls are around line 2482–2498. Add the three new controls immediately after the `configText` creation block.
 
 ```cpp
 state->touchpadStatusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
@@ -112,9 +117,9 @@ state->startWithWindowsStatusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | 
     reinterpret_cast<HMENU>(IDC_START_WITH_WINDOWS_STATUS_TEXT), createStruct->hInstance, NULL);
 ```
 
-### Status page layout — add MoveWindow calls and push `textTop` down
+### Status page layout — add MoveWindow calls and push `textTop` down (~line 2067)
 
-Current layout has `configText` at `margin + 168` and `textTop` at `margin + 200`.
+The `MoveWindow` layout calls for the status page are around lines 2050–2073. Current layout has `configText` at `margin + 168` (line 2067) and `textTop` defined as `margin + 200` (line 2069).
 
 New labels go at `margin + 196`, `margin + 224`, `margin + 252` (28 px increments, same as existing rows). `textTop` moves from `margin + 200` to `margin + 284`.
 
@@ -131,7 +136,9 @@ const int textTop = margin + 284;  // was margin + 200
 
 Add `state->touchpadStatusText`, `state->swapStatusText`, `state->startWithWindowsStatusText` to the existing brace-enclosed list.
 
-### `updateStatusControls()` — add three `setTextIfChanged` calls (after `configText` line)
+### `updateStatusControls()` — add three `setTextIfChanged` calls (~line 1848, after `configText` update)
+
+In `updateStatusControls()` (starts at line 1811), `configText` is updated at line 1848. Insert the three new calls immediately after that line.
 
 ```cpp
 setTextIfChanged(state->touchpadStatusText, state->cachedTouchpadStatusText,
