@@ -144,6 +144,7 @@ Important config groups:
 * `ON_ENABLE` and `ON_DISABLE`: optional key events when mapping is toggled
 * `CURSOR_SPEED`, `SCROLL_SPEED`, `SWAP_THUMBSTICKS`, and dead-zone values: movement behavior
 * `TOUCHPAD_ENABLED`, `TOUCHPAD_DEAD_ZONE`, and `TOUCHPAD_SPEED`: DualSense touchpad mouse input behavior
+* `TOUCHPAD_SCROLL_ENABLED` and `TOUCHPAD_SCROLL_SPEED`: independent control of DualSense two-finger scroll behavior
 * `START_WITH_WINDOWS`: whether NexPad registers itself to launch for the current user at Windows sign-in
 * `UI_THEME_MODE`: UI palette preference (`0 = dark`, `1 = light`, `2 = high contrast`)
 
@@ -167,9 +168,11 @@ Example config:
 TOUCHPAD_ENABLED = 1
 TOUCHPAD_DEAD_ZONE = 2
 TOUCHPAD_SPEED = 1.200
+TOUCHPAD_SCROLL_ENABLED = 1
+TOUCHPAD_SCROLL_SPEED = 1.000
 ```
 
-The Settings tab now exposes touchpad enable, speed, and dead zone controls for live tuning and save or reload workflows. A short one-finger touchpad tap without pointer drag still triggers a left click, while a reliable two-finger gesture emits scroll wheel input without moving the cursor.
+The Settings tab now exposes touchpad enable, speed, and dead zone controls for live tuning and save or reload workflows. Two-finger scroll gestures can now be adjusted independently of one-finger cursor behavior through the `TOUCHPAD_SCROLL_ENABLED` and `TOUCHPAD_SCROLL_SPEED` settings, allowing you to fine-tune scrolling behavior or disable it entirely. A short one-finger touchpad tap without pointer drag still triggers a left click, while a reliable two-finger gesture emits scroll wheel input without moving the cursor.
 
 Reference links:
 

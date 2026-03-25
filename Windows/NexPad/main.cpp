@@ -65,8 +65,10 @@ namespace
     IDC_SPEED_COMBO,
     IDC_SCROLL_EDIT,
     IDC_TOUCHPAD_SPEED_EDIT,
+    IDC_TOUCHPAD_SCROLL_SPEED_EDIT,
     IDC_TOUCHPAD_DEAD_ZONE_EDIT,
     IDC_TOUCHPAD_CHECK,
+    IDC_TOUCHPAD_SCROLL_CHECK,
     IDC_SWAP_CHECK,
     IDC_START_WITH_WINDOWS_CHECK,
     IDC_THEME_LABEL,
@@ -125,8 +127,10 @@ namespace
     HWND speedCombo = NULL;
     HWND scrollEdit = NULL;
     HWND touchpadSpeedEdit = NULL;
+    HWND touchpadScrollSpeedEdit = NULL;
     HWND touchpadDeadZoneEdit = NULL;
     HWND touchpadCheck = NULL;
+    HWND touchpadScrollCheck = NULL;
     HWND swapCheck = NULL;
     HWND startWithWindowsCheck = NULL;
     HWND themeLabel = NULL;
@@ -150,6 +154,7 @@ namespace
     HWND speedLabel = NULL;
     HWND scrollLabel = NULL;
     HWND touchpadSpeedLabel = NULL;
+    HWND touchpadScrollSpeedLabel = NULL;
     HWND touchpadDeadZoneLabel = NULL;
     HWND presetListLabel = NULL;
     HWND presetNameLabel = NULL;
@@ -1278,7 +1283,7 @@ namespace
       borderColor = RGB(220, 220, 220);
     }
 
-    if (drawItem->hwndItem == state->touchpadCheck || drawItem->hwndItem == state->swapCheck || drawItem->hwndItem == state->startWithWindowsCheck)
+    if (drawItem->hwndItem == state->touchpadCheck || drawItem->hwndItem == state->touchpadScrollCheck || drawItem->hwndItem == state->swapCheck || drawItem->hwndItem == state->startWithWindowsCheck)
     {
       const bool checked = SendMessage(drawItem->hwndItem, BM_GETCHECK, 0, 0) == BST_CHECKED;
       HBRUSH backgroundBrush = CreateSolidBrush(fillColor);
@@ -1875,6 +1880,10 @@ namespace
     touchpadSpeed << std::fixed << std::setprecision(3) << state->nexPad.getTouchpadSpeed();
     SetWindowTextA(state->touchpadSpeedEdit, touchpadSpeed.str().c_str());
 
+    std::ostringstream touchpadScrollSpeed;
+    touchpadScrollSpeed << std::fixed << std::setprecision(3) << state->nexPad.getTouchpadScrollSpeed();
+    SetWindowTextA(state->touchpadScrollSpeedEdit, touchpadScrollSpeed.str().c_str());
+
     std::ostringstream touchpadDeadZone;
     touchpadDeadZone << state->nexPad.getTouchpadDeadZone();
     SetWindowTextA(state->touchpadDeadZoneEdit, touchpadDeadZone.str().c_str());
@@ -1892,6 +1901,7 @@ namespace
     refreshComboDisplay(state->themeCombo);
 
     SendMessage(state->touchpadCheck, BM_SETCHECK, state->nexPad.getTouchpadEnabled() ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessage(state->touchpadScrollCheck, BM_SETCHECK, state->nexPad.getTouchpadScrollEnabled() ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessage(state->swapCheck, BM_SETCHECK, state->nexPad.getSwapThumbsticks() ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessage(state->startWithWindowsCheck, BM_SETCHECK, state->nexPad.getStartWithWindows() ? BST_CHECKED : BST_UNCHECKED, 0);
   }
@@ -2072,6 +2082,10 @@ namespace
     applyEditPadding(state->scrollEdit, 6, 0);
     MoveWindow(state->themeLabel, margin + 272, margin + 56, 180, labelHeight, TRUE);
     MoveWindow(state->themeCombo, margin + 272, margin + 76, 220, 240, TRUE);
+    MoveWindow(state->touchpadScrollSpeedLabel, margin + 272, margin + 112, 220, labelHeight, TRUE);
+    MoveWindow(state->touchpadScrollSpeedEdit, margin + 272, margin + 132, 120, 24, TRUE);
+    applyEditPadding(state->touchpadScrollSpeedEdit, 6, 0);
+    MoveWindow(state->touchpadScrollCheck, margin + 272, margin + 168, pageWidth - (margin + 272) - margin, 24, TRUE);
     MoveWindow(state->touchpadSpeedLabel, margin, margin + 112, 160, labelHeight, TRUE);
     MoveWindow(state->touchpadSpeedEdit, margin, margin + 132, 120, 24, TRUE);
     applyEditPadding(state->touchpadSpeedEdit, 6, 0);
@@ -2152,7 +2166,16 @@ namespace
       }
     }
 
+    char touchpadScrollSpeedBuffer[64] = {};
+    GetWindowTextA(state->touchpadScrollSpeedEdit, touchpadScrollSpeedBuffer, static_cast<int>(sizeof(touchpadScrollSpeedBuffer)));
+    const float touchpadScrollSpeed = static_cast<float>(atof(touchpadScrollSpeedBuffer));
+    if (touchpadScrollSpeed > 0.0f)
+    {
+      state->nexPad.setTouchpadScrollSpeed(touchpadScrollSpeed);
+    }
+
     state->nexPad.setTouchpadEnabled(SendMessage(state->touchpadCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
+    state->nexPad.setTouchpadScrollEnabled(SendMessage(state->touchpadScrollCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     state->nexPad.setSwapThumbsticks(SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
 
     bool themeChanged = false;
@@ -2490,9 +2513,9 @@ namespace
       state->scrollEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
                                           0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SCROLL_EDIT), createStruct->hInstance, NULL);
       state->themeLabel = CreateWindowExA(0, "STATIC", "Theme mode", WS_CHILD | WS_VISIBLE,
-                  12, 68, 160, 20, state->settingsPage, reinterpret_cast<HMENU>(IDC_THEME_LABEL), createStruct->hInstance, NULL);
+                                          12, 68, 160, 20, state->settingsPage, reinterpret_cast<HMENU>(IDC_THEME_LABEL), createStruct->hInstance, NULL);
       state->themeCombo = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
-                  0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_THEME_COMBO), createStruct->hInstance, NULL);
+                                          0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_THEME_COMBO), createStruct->hInstance, NULL);
       state->touchpadSpeedLabel = CreateWindowExA(0, "STATIC", "Touchpad cursor speed", WS_CHILD | WS_VISIBLE,
                                                   12, 104, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
       state->touchpadSpeedEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,

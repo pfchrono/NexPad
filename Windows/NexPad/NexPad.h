@@ -41,8 +41,10 @@ private:
   int TRIGGER_DEAD_ZONE = 0;           // Dead zone for the left and right triggers to detect a trigger press. 0 means that any press to trigger will be read as a button press.
   float SCROLL_SPEED = 0.1f;           // Speed at which you scroll.
   int TOUCHPAD_ENABLED = 0;            // Enables DualSense touchpad cursor control when non-zero.
+  int TOUCHPAD_SCROLL_ENABLED = 1;     // Enables DualSense two-finger touchpad scrolling when non-zero.
   int TOUCHPAD_DEAD_ZONE = 2;          // Minimum per-frame touchpad motion before cursor movement is applied.
   float TOUCHPAD_SPEED = 1.2f;         // Multiplier for DualSense touchpad cursor movement.
+  float TOUCHPAD_SCROLL_SPEED = 1.0f;  // Multiplier for DualSense two-finger touchpad scroll sensitivity.
   const int FPS = 150;                 // Update rate of the main NexPad loop. Interpreted as cycles-per-second.
   const int SLEEP_AMOUNT = 1000 / FPS; // Number of milliseconds to sleep per iteration.
   int SWAP_THUMBSTICKS = 0;            // Swaps the function of the thumbsticks when not equal to 0.
@@ -76,8 +78,8 @@ private:
   bool _disabled = false;          // Disables the NexPad controller mapping.
   bool _vibrationDisabled = false; // Prevents NexPad from producing controller vibrations.
   bool _hidden = false;            // NexPad main window visibility.
-  bool _lTriggerPrevious = false; // Previous state of the left trigger.
-  bool _rTriggerPrevious = false; // Previous state of the right trigger.
+  bool _lTriggerPrevious = false;  // Previous state of the left trigger.
+  bool _rTriggerPrevious = false;  // Previous state of the right trigger.
   bool _vibrationActive = false;
   int _vibrationLeftMotor = 0;
   int _vibrationRightMotor = 0;
@@ -204,9 +206,13 @@ public:
 
   int getTouchpadEnabled() const;
 
+  int getTouchpadScrollEnabled() const;
+
   int getTouchpadDeadZone() const;
 
   float getTouchpadSpeed() const;
+
+  float getTouchpadScrollSpeed() const;
 
   int getLoopIntervalMs() const;
 
@@ -222,9 +228,13 @@ public:
 
   void setTouchpadEnabled(int value);
 
+  void setTouchpadScrollEnabled(int value);
+
   void setTouchpadDeadZone(int value);
 
   void setTouchpadSpeed(float value);
+
+  void setTouchpadScrollSpeed(float value);
 
   int getSwapThumbsticks() const;
 

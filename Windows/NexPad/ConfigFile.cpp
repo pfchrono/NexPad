@@ -154,8 +154,10 @@ void ConfigFile::ExtractKeys()
     outfile << "CURRENT_SPEED_INDEX = 0 # Selected speed preset index saved by the GUI" << std::endl;
     outfile << "SCROLL_SPEED = 0.125 # Speed at which you scroll (scalar)" << std::endl;
     outfile << "TOUCHPAD_ENABLED = 1 # Enable DualSense touchpad cursor, tap, and two-finger scroll gestures (0 = disabled, 1 = enabled)." << std::endl;
+    outfile << "TOUCHPAD_SCROLL_ENABLED = 1 # Enable DualSense two-finger scroll gestures without affecting one-finger cursor/tap behavior (0 = disabled, 1 = enabled)." << std::endl;
     outfile << "TOUCHPAD_DEAD_ZONE = 2 # Minimum per-frame touchpad movement before cursor or two-finger scroll motion is applied." << std::endl;
     outfile << "TOUCHPAD_SPEED = 1.200 # Sensitivity multiplier for DualSense one-finger touchpad cursor movement." << std::endl;
+    outfile << "TOUCHPAD_SCROLL_SPEED = 1.000 # Sensitivity multiplier for DualSense two-finger touchpad scrolling." << std::endl;
     outfile << "START_WITH_WINDOWS = 0 # Launch NexPad at Windows sign-in for the current user (0 = disabled, 1 = enabled)." << std::endl;
     outfile << "UI_THEME_MODE = 0 # UI theme mode (0 = dark, 1 = light, 2 = high contrast)." << std::endl;
     outfile << "INIT_DISABLED = 0 # Start NexPad Disabled (1 for disabled, 0 for enabled)" << std::endl;

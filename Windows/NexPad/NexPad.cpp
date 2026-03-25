@@ -483,6 +483,11 @@ int NexPad::getTouchpadEnabled() const
   return TOUCHPAD_ENABLED;
 }
 
+int NexPad::getTouchpadScrollEnabled() const
+{
+  return TOUCHPAD_SCROLL_ENABLED;
+}
+
 int NexPad::getTouchpadDeadZone() const
 {
   return TOUCHPAD_DEAD_ZONE;
@@ -491,6 +496,11 @@ int NexPad::getTouchpadDeadZone() const
 float NexPad::getTouchpadSpeed() const
 {
   return TOUCHPAD_SPEED;
+}
+
+float NexPad::getTouchpadScrollSpeed() const
+{
+  return TOUCHPAD_SCROLL_SPEED;
 }
 
 int NexPad::getLoopIntervalMs() const
@@ -564,6 +574,12 @@ void NexPad::setTouchpadEnabled(int value)
   notifyStatus(std::string("DualSense touchpad cursor ") + (TOUCHPAD_ENABLED ? "Enabled" : "Disabled"));
 }
 
+void NexPad::setTouchpadScrollEnabled(int value)
+{
+  TOUCHPAD_SCROLL_ENABLED = value ? 1 : 0;
+  notifyStatus(std::string("DualSense touchpad scrolling ") + (TOUCHPAD_SCROLL_ENABLED ? "Enabled" : "Disabled"));
+}
+
 void NexPad::setTouchpadDeadZone(int value)
 {
   if (value >= 0)
@@ -585,6 +601,18 @@ void NexPad::setTouchpadSpeed(float value)
     std::ostringstream touchpadMessage;
     touchpadMessage << "Applied touchpad speed " << TOUCHPAD_SPEED;
     notifyStatus(touchpadMessage.str());
+  }
+}
+
+void NexPad::setTouchpadScrollSpeed(float value)
+{
+  if (value > 0.0f)
+  {
+    TOUCHPAD_SCROLL_SPEED = value;
+
+    std::ostringstream touchpadScrollMessage;
+    touchpadScrollMessage << "Applied touchpad scroll speed " << TOUCHPAD_SCROLL_SPEED;
+    notifyStatus(touchpadScrollMessage.str());
   }
 }
 
@@ -745,6 +773,8 @@ void NexPad::loadConfigFile()
 
   TOUCHPAD_ENABLED = strtol(cfg.getValueOfKey<std::string>("TOUCHPAD_ENABLED", "1").c_str(), 0, 0) != 0 ? 1 : 0;
 
+  TOUCHPAD_SCROLL_ENABLED = strtol(cfg.getValueOfKey<std::string>("TOUCHPAD_SCROLL_ENABLED", "1").c_str(), 0, 0) != 0 ? 1 : 0;
+
   TOUCHPAD_DEAD_ZONE = strtol(cfg.getValueOfKey<std::string>("TOUCHPAD_DEAD_ZONE", "2").c_str(), 0, 0);
   if (TOUCHPAD_DEAD_ZONE < 0)
   {
@@ -755,6 +785,12 @@ void NexPad::loadConfigFile()
   if (TOUCHPAD_SPEED < 0.00001f)
   {
     TOUCHPAD_SPEED = 1.2f;
+  }
+
+  TOUCHPAD_SCROLL_SPEED = strtof(cfg.getValueOfKey<std::string>("TOUCHPAD_SCROLL_SPEED", "1.000").c_str(), 0);
+  if (TOUCHPAD_SCROLL_SPEED < 0.00001f)
+  {
+    TOUCHPAD_SCROLL_SPEED = 1.0f;
   }
 
   START_WITH_WINDOWS = strtol(cfg.getValueOfKey<std::string>("START_WITH_WINDOWS", "0").c_str(), 0, 0) != 0 ? 1 : 0;
@@ -1050,10 +1086,14 @@ bool NexPad::saveConfigFile()
   updateConfigLine(lines, "SCROLL_SPEED", scrollValue.str());
   updateConfigLine(lines, "SWAP_THUMBSTICKS", std::to_string(SWAP_THUMBSTICKS));
   updateConfigLine(lines, "TOUCHPAD_ENABLED", std::to_string(TOUCHPAD_ENABLED));
+  updateConfigLine(lines, "TOUCHPAD_SCROLL_ENABLED", std::to_string(TOUCHPAD_SCROLL_ENABLED));
   updateConfigLine(lines, "TOUCHPAD_DEAD_ZONE", std::to_string(TOUCHPAD_DEAD_ZONE));
   std::ostringstream touchpadSpeedValue;
   touchpadSpeedValue << std::fixed << std::setprecision(3) << TOUCHPAD_SPEED;
   updateConfigLine(lines, "TOUCHPAD_SPEED", touchpadSpeedValue.str());
+  std::ostringstream touchpadScrollSpeedValue;
+  touchpadScrollSpeedValue << std::fixed << std::setprecision(3) << TOUCHPAD_SCROLL_SPEED;
+  updateConfigLine(lines, "TOUCHPAD_SCROLL_SPEED", touchpadScrollSpeedValue.str());
   updateConfigLine(lines, "START_WITH_WINDOWS", std::to_string(START_WITH_WINDOWS));
   updateConfigLine(lines, "UI_THEME_MODE", std::to_string(UI_THEME_MODE));
   updateConfigLine(lines, "CONFIG_MOUSE_LEFT", formatHexValue(CONFIG_MOUSE_LEFT));
@@ -1232,7 +1272,9 @@ std::string NexPad::getProfileText() const
          << "TOUCHPAD_SPEED = " << TOUCHPAD_SPEED << "\r\n";
   stream << "SWAP_THUMBSTICKS = " << SWAP_THUMBSTICKS << "\r\n";
   stream << "TOUCHPAD_ENABLED = " << TOUCHPAD_ENABLED << "\r\n";
+  stream << "TOUCHPAD_SCROLL_ENABLED = " << TOUCHPAD_SCROLL_ENABLED << "\r\n";
   stream << "TOUCHPAD_DEAD_ZONE = " << TOUCHPAD_DEAD_ZONE << "\r\n";
+  stream << "TOUCHPAD_SCROLL_SPEED = " << TOUCHPAD_SCROLL_SPEED << "\r\n";
   stream << "UI_THEME_MODE = " << UI_THEME_MODE << "\r\n\r\n";
   stream << getMappingsText();
   return stream.str();
@@ -1267,6 +1309,11 @@ bool NexPad::applyProfileText(const std::string &profileText)
     TOUCHPAD_ENABLED = parsedInteger == 0 ? 0 : 1;
   }
 
+  if (tryParseConfigValue(profileText, "TOUCHPAD_SCROLL_ENABLED", parsedInteger))
+  {
+    TOUCHPAD_SCROLL_ENABLED = parsedInteger == 0 ? 0 : 1;
+  }
+
   if (tryParseConfigValue(profileText, "TOUCHPAD_DEAD_ZONE", parsedInteger))
   {
     TOUCHPAD_DEAD_ZONE = static_cast<int>(parsedInteger);
@@ -1280,6 +1327,12 @@ bool NexPad::applyProfileText(const std::string &profileText)
   if (tryParseFloatConfigValue(profileText, "TOUCHPAD_SPEED", parsedTouchpadSpeed) && parsedTouchpadSpeed > 0.0f)
   {
     TOUCHPAD_SPEED = parsedTouchpadSpeed;
+  }
+
+  float parsedTouchpadScrollSpeed = 0.0f;
+  if (tryParseFloatConfigValue(profileText, "TOUCHPAD_SCROLL_SPEED", parsedTouchpadScrollSpeed) && parsedTouchpadScrollSpeed > 0.0f)
+  {
+    TOUCHPAD_SCROLL_SPEED = parsedTouchpadScrollSpeed;
   }
 
   if (tryParseConfigValue(profileText, "UI_THEME_MODE", parsedInteger))
@@ -1728,7 +1781,7 @@ void NexPad::handleTouchpadMovement(float &dx, float &dy)
 
 void NexPad::handleTouchpadScrolling()
 {
-  if (TOUCHPAD_ENABLED == 0)
+  if (TOUCHPAD_ENABLED == 0 || TOUCHPAD_SCROLL_ENABLED == 0)
   {
     _touchpadScrollRawX = 0.0f;
     _touchpadScrollRawY = 0.0f;
@@ -1781,8 +1834,9 @@ void NexPad::handleTouchpadScrolling()
   }
 
   const float TOUCHPAD_SCROLL_SCALE = 96.0f;
-  const float scrollXValue = _touchpadScrollXRest + (_touchpadScrollRawX * SCROLL_SPEED * TOUCHPAD_SCROLL_SCALE);
-  const float scrollYValue = _touchpadScrollYRest - (_touchpadScrollRawY * SCROLL_SPEED * TOUCHPAD_SCROLL_SCALE);
+  const float touchpadScrollMultiplier = SCROLL_SPEED * TOUCHPAD_SCROLL_SPEED;
+  const float scrollXValue = _touchpadScrollXRest + (_touchpadScrollRawX * touchpadScrollMultiplier * TOUCHPAD_SCROLL_SCALE);
+  const float scrollYValue = _touchpadScrollYRest - (_touchpadScrollRawY * touchpadScrollMultiplier * TOUCHPAD_SCROLL_SCALE);
 
   const int scrollX = static_cast<int>(scrollXValue);
   const int scrollY = static_cast<int>(scrollYValue);

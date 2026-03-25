@@ -216,6 +216,7 @@ xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul</Command>
     <ClCompile Include="ConfigFile.cpp" />
     <ClCompile Include="CXBOXController.cpp" />
     <ClCompile Include="NexPad.cpp" />
+    <ClCompile Include="RuntimeLoop.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -223,6 +224,7 @@ xcopy /E /I /Y "$(SolutionDir)..\presets" "$(OutDir)presets" &gt;nul</Command>
     <ClInclude Include="Convert.h" />
     <ClInclude Include="CXBOXController.h" />
     <ClInclude Include="NexPad.h" />
+    <ClInclude Include="RuntimeLoop.h" />
     <ClInclude Include="AppVersion.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
