@@ -88,7 +88,10 @@ namespace
     IDC_RELOAD_BUTTON,
     IDC_IMPORT_BUTTON,
     IDC_EXPORT_BUTTON,
-    IDC_SETTINGS_NOTE
+    IDC_SETTINGS_NOTE,
+    IDC_TOUCHPAD_STATUS_TEXT,
+    IDC_SWAP_STATUS_TEXT,
+    IDC_START_WITH_WINDOWS_STATUS_TEXT,
   };
 
   const UINT WMAPP_TRAYICON = WM_APP + 1;
@@ -120,6 +123,9 @@ namespace
     HWND speedText = NULL;
     HWND scrollText = NULL;
     HWND configText = NULL;
+    HWND touchpadStatusText = NULL;
+    HWND swapStatusText = NULL;
+    HWND startWithWindowsStatusText = NULL;
     HWND versionText = NULL;
     HWND toggleButton = NULL;
     HWND startupInfo = NULL;
@@ -185,6 +191,9 @@ namespace
     std::string cachedSpeedText;
     std::string cachedScrollText;
     std::string cachedConfigText;
+    std::string cachedTouchpadStatusText;
+    std::string cachedSwapStatusText;
+    std::string cachedStartWithWindowsStatusText;
     std::string cachedVersionText;
     std::string cachedToggleButtonText;
     std::string cachedTrayTooltip;
