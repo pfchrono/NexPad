@@ -56,7 +56,7 @@ Entry point **and** the entire Win32 UI. Contains the native dialog with three t
 
 ## Config File
 
-`config.ini` must be present next to the executable. Key groups:
+`config.ini` (repo root, also copied next to the executable at build time) must be present next to the executable at runtime. Key groups:
 - `CONFIG_*` — controller actions (mouse clicks, disable toggle, OSK)
 - `GAMEPAD_*` — button-to-key mappings (XInput bitmask hex → VK code)
 - `ON_ENABLE` / `ON_DISABLE` — optional VK events fired on toggle
