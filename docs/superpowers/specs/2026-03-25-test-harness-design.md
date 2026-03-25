@@ -10,7 +10,7 @@ Introduce a Google Test regression harness that covers `ConfigFile` parsing, Dua
 
 ## Approach
 
-Google Test via git submodule (`googletest/`), built from source. A new VS project (`NexPadTests`) in the existing solution compiles the logic source files directly. One small extraction from `CXBOXController` and two minimal accessor additions to `NexPad` make the untestable code testable.
+Google Test via git submodule (`googletest/`), built from source. A new VS project (`NexPadTests`) in the existing solution compiles the logic source files directly. The three DualSense HID variant parsers are promoted from an anonymous namespace to a named `NexPadInternal` namespace so tests can call them directly. Three accessor methods are added to `NexPad` for button state inspection.
 
 ## New Files and Changes
 
@@ -22,6 +22,7 @@ Git submodule at repo root pointing to `https://github.com/google/googletest`. T
 
 New VS project added to `Windows/NexPad.sln`. Configuration:
 - Output type: Application (Console)
+- Output directory: `$(SolutionDir)..\release\$(PlatformShortName)\` (matches existing layout; CI runs `release\x64\NexPadTests.exe`)
 - Compiles: `CXBOXController.cpp`, `ConfigFile.cpp`, `NexPad.cpp`, `RuntimeLoop.cpp`, `gtest-all.cc`, `test_*.cpp`
 - Excludes: `main.cpp` (Win32 UI entry point — not testable)
 - Include paths: `Windows/NexPad/`, `googletest/googletest/include/`, `googletest/googletest/`
@@ -30,7 +31,7 @@ New VS project added to `Windows/NexPad.sln`. Configuration:
 
 ### New: `Windows/NexPadTests/test_configfile.cpp`
 
-Tests for `ConfigFile` and `Convert`:
+Tests for `ConfigFile` and `Convert`. `ConfigFile` reads from a path passed to its constructor, so each test writes a temp file (via `std::tmpnam` or `GetTempPath`), constructs `ConfigFile` with that path, then deletes the file in cleanup:
 - `key = value` parsing
 - `#` comment stripping
 - Missing key returns default value
@@ -38,11 +39,11 @@ Tests for `ConfigFile` and `Convert`:
 
 ### New: `Windows/NexPadTests/test_controller_parsing.cpp`
 
-Tests for the extracted `ParseDualSenseReport()` free function:
-- Known USB HID byte buffer → correct `XINPUT_STATE` button bitmask
-- Known thumbstick bytes → correct axis values in expected range
-- Known touchpad bytes → correct `TouchpadState` coords
-- Short/empty buffer → returns false, output zeroed
+Tests call the three promoted variant parsers directly via `NexPadInternal` namespace:
+- `parseDualSenseUsbReport`: known USB byte vector (report[0]=0x01, >=12 bytes) produces correct `XINPUT_STATE` button bitmask and axis values
+- `parseDualSenseBluetoothSimpleReport`: known BT simple byte vector (report[0]=0x01, <=10 bytes) produces correct bitmask and axes
+- `parseDualSenseBluetoothEnhancedReport`: known BT enhanced byte vector (report[0]=0x31) produces correct bitmask and axes
+- Short/empty buffer: each parser returns false
 
 ### New: `Windows/NexPadTests/test_button_state.cpp`
 
@@ -53,28 +54,28 @@ Tests for `NexPad` button edge detection (calls `setXboxClickState()` + new acce
 - Hold then release: `isButtonDown()` false after first tick, `isButtonUp()` true on release
 - Combo (e.g., `0x0030` = START+BACK): fires when both bits set simultaneously
 
-### Modified: `Windows/NexPad/CXBOXController.h` + `CXBOXController.cpp`
+### Modified: `Windows/NexPad/CXBOXController.cpp`
 
-Extract DualSense HID report parsing into a free function:
+The three DualSense HID variant parsers currently live in an anonymous namespace. Move them to `namespace NexPadInternal { ... }`. No signature changes — they remain `bool parseDualSense*(const std::vector<BYTE>&, XINPUT_STATE*)`. The dispatcher `parseDualSenseReport` also moves to `NexPadInternal`. Call sites in `GetState()` updated to `NexPadInternal::parseDualSense*(...)`.
+
+### Modified: `Windows/NexPad/CXBOXController.h`
+
+Add forward declarations so test files can include the header and call the parsers:
 
 ```cpp
-// CXBOXController.h
-bool ParseDualSenseReport(const uint8_t* buf, size_t len,
-                          XINPUT_GAMEPAD& gamepadOut,
-                          CXBOXController::TouchpadState& touchpadOut);
+namespace NexPadInternal {
+  bool parseDualSenseUsbReport(const std::vector<BYTE>& report, XINPUT_STATE* state);
+  bool parseDualSenseBluetoothSimpleReport(const std::vector<BYTE>& report, XINPUT_STATE* state);
+  bool parseDualSenseBluetoothEnhancedReport(const std::vector<BYTE>& report, XINPUT_STATE* state);
+}
 ```
-
-The function is currently inline logic inside `GetState()`. Extracting it does not change `GetState()` behavior — `GetState()` calls `ParseDualSenseReport()` after the extraction.
 
 ### Modified: `Windows/NexPad/NexPad.h` + `NexPad.cpp`
 
-Add three minimal test accessors and make `setXboxClickState()` public:
+Add three minimal test accessors. `setXboxClickState()` is already public — no change needed for it:
 
 ```cpp
-// Make public (move from private section):
-void setXboxClickState(DWORD state);
-
-// New accessors:
+// New accessors (NexPad.h public section, implemented in NexPad.cpp):
 bool isButtonDown(DWORD key) const;      // returns _xboxClickIsDown[key]
 bool isButtonUp(DWORD key) const;        // returns _xboxClickIsUp[key]
 bool isButtonDownLong(DWORD key) const;  // returns _xboxClickIsDownLong[key]
@@ -84,7 +85,13 @@ These are the minimum changes to make the button state logic testable without ca
 
 ### Modified: `.github/workflows/build.yml`
 
-Add a test step after the Release builds:
+Add `submodules: recursive` to the existing checkout step, and add a test step after the Release builds:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    submodules: recursive
+```
 
 ```yaml
 - name: Run NexPadTests
