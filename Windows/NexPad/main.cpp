@@ -2769,6 +2769,10 @@ namespace
           const LRESULT checked = SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
           SendMessage(state->swapCheck, BM_SETCHECK, checked, 0);
           InvalidateRect(state->swapCheck, NULL, TRUE);
+          state->nexPad.setSwapThumbsticks(checked == BST_CHECKED ? 1 : 0);
+          state->nexPad.saveConfigFile();
+          updateStatusControls(window);
+          appendOutput(window, checked == BST_CHECKED ? "Swap thumbsticks: on." : "Swap thumbsticks: off.");
         }
         return 0;
 
@@ -2787,6 +2791,10 @@ namespace
           const LRESULT checked = SendMessage(state->touchpadCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
           SendMessage(state->touchpadCheck, BM_SETCHECK, checked, 0);
           InvalidateRect(state->touchpadCheck, NULL, TRUE);
+          state->nexPad.setTouchpadEnabled(checked == BST_CHECKED ? 1 : 0);
+          state->nexPad.saveConfigFile();
+          updateStatusControls(window);
+          appendOutput(window, checked == BST_CHECKED ? "Touchpad enabled." : "Touchpad disabled.");
         }
         return 0;
 
