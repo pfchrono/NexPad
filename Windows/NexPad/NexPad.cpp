@@ -2372,7 +2372,3 @@ bool NexPad::isButtonDownLong(DWORD key) const {
     auto it = _xboxClickIsDownLong.find(key);
     return it != _xboxClickIsDownLong.end() && it->second;
 }
-
-void NexPad::setTestButtonState(WORD buttons) {
-    _currentState.Gamepad.wButtons = buttons;
-}

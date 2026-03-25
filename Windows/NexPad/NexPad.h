@@ -192,9 +192,6 @@ public:
 
   bool isButtonDownLong(DWORD key) const;
 
-  // Test helper: set the button state for unit tests (does NOT call GetState or SendInput)
-  void setTestButtonState(WORD buttons);
-
   HWND getOskWindow();
 
   void launchOsk();
