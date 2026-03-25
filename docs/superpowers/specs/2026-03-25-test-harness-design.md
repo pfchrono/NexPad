@@ -23,7 +23,7 @@ Git submodule at repo root pointing to `https://github.com/google/googletest`. T
 New VS project added to `Windows/NexPad.sln`. Configuration:
 - Output type: Application (Console)
 - Output directory: `$(SolutionDir)..\release\$(PlatformShortName)\` (matches existing layout; CI runs `release\x64\NexPadTests.exe`)
-- Compiles: `CXBOXController.cpp`, `ConfigFile.cpp`, `NexPad.cpp`, `RuntimeLoop.cpp`, `gtest-all.cc`, `test_*.cpp`
+- Compiles: `CXBOXController.cpp`, `ConfigFile.cpp`, `NexPad.cpp`, `gtest-all.cc`, `test_*.cpp`
 - Excludes: `main.cpp` (Win32 UI entry point — not testable)
 - Include paths: `Windows/NexPad/`, `googletest/googletest/include/`, `googletest/googletest/`
 - Preprocessor: `GTEST_HAS_SEH=0`
@@ -39,11 +39,42 @@ Tests for `ConfigFile` and `Convert`. `ConfigFile` reads from a path passed to i
 
 ### New: `Windows/NexPadTests/test_controller_parsing.cpp`
 
-Tests call the three promoted variant parsers directly via `NexPadInternal` namespace:
-- `parseDualSenseUsbReport`: known USB byte vector (report[0]=0x01, >=12 bytes) produces correct `XINPUT_STATE` button bitmask and axis values
-- `parseDualSenseBluetoothSimpleReport`: known BT simple byte vector (report[0]=0x01, <=10 bytes) produces correct bitmask and axes
-- `parseDualSenseBluetoothEnhancedReport`: known BT enhanced byte vector (report[0]=0x31) produces correct bitmask and axes
-- Short/empty buffer: each parser returns false
+Tests call the three promoted variant parsers directly via `NexPadInternal` namespace. Each test constructs a byte vector, calls the parser, and asserts specific `XINPUT_STATE` fields.
+
+**`parseDualSenseUsbReport`** — USB layout: `[0]=id, [1]=LX, [2]=LY, [3]=RX, [4]=RY, [5]=L2, [6]=R2, [7]=pad, [8]=buttons1, [9]=buttons2`
+
+Input vector (12 bytes):
+```
+{0x01, 0x80, 0x80, 0x80, 0x80, 0x40, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00}
+```
+- `buttons1=0x20` → Cross → `XINPUT_GAMEPAD_A` (0x1000)
+- `LX=0x80` → `sThumbLX = 0`
+- `L2=0x40` → `bLeftTrigger = 64`
+
+Expected: `wButtons == 0x1000`, `sThumbLX == 0`, `bLeftTrigger == 64`, returns `true`.
+
+**`parseDualSenseBluetoothSimpleReport`** — BT simple layout: `[0]=id, [1]=LX, [2]=LY, [3]=RX, [4]=RY, [5]=buttons1, [6]=buttons2, [7]=pad, [8]=L2, [9]=R2`
+
+Input vector (10 bytes):
+```
+{0x01, 0x80, 0x80, 0x80, 0x80, 0x40, 0x02, 0x00, 0x00, 0x80}
+```
+- `buttons1=0x40` → Circle → `XINPUT_GAMEPAD_B` (0x2000)
+- `buttons2=0x02` → R1 → `XINPUT_GAMEPAD_RIGHT_SHOULDER` (0x0200)
+- `R2=0x80` → `bRightTrigger = 128`
+
+Expected: `wButtons == 0x2200`, `bRightTrigger == 128`, returns `true`.
+
+**`parseDualSenseBluetoothEnhancedReport`** — BT enhanced layout: `[0]=0x31, [1]=pad, [2+0..8]` mirrors USB layout at baseOffset=2; minimum size 55 bytes.
+
+Input vector (55 bytes, all zero except):
+```
+report[0]=0x31, report[9]=0x80 (buttons1: Triangle→XINPUT_GAMEPAD_Y 0x8000),
+report[10]=0x01 (buttons2: L1→XINPUT_GAMEPAD_LEFT_SHOULDER 0x0100)
+```
+Expected: `wButtons == 0x8100`, returns `true`.
+
+**Short/empty buffer**: each parser returns `false` when passed a vector shorter than its minimum size.
 
 ### New: `Windows/NexPadTests/test_button_state.cpp`
 
