@@ -2074,8 +2074,10 @@ namespace
     MoveWindow(state->speedText, margin, margin + 112, pageWidth - margin * 2, labelHeight, TRUE);
     MoveWindow(state->scrollText, margin, margin + 140, pageWidth - margin * 2, labelHeight, TRUE);
     MoveWindow(state->configText, margin, margin + 168, pageWidth - margin * 2, labelHeight, TRUE);
-
-    const int textTop = margin + 200;
+    MoveWindow(state->touchpadStatusText, margin, margin + 196, pageWidth - margin * 2, labelHeight, TRUE);
+    MoveWindow(state->swapStatusText, margin, margin + 224, pageWidth - margin * 2, labelHeight, TRUE);
+    MoveWindow(state->startWithWindowsStatusText, margin, margin + 252, pageWidth - margin * 2, labelHeight, TRUE);
+    const int textTop = margin + 284;
     const int footerHeight = 20;
     const int textHeight = (pageHeight - textTop - margin * 2 - footerHeight) / 2;
     MoveWindow(state->startupInfo, margin, textTop, pageWidth - margin * 2, textHeight, TRUE);
