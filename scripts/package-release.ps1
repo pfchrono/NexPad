@@ -79,7 +79,7 @@ function Copy-DirectoryContents {
   )
 
   if (!(Test-Path $Source)) {
-    return
+    throw "Copy-DirectoryContents: source path not found: $Source"
   }
 
   New-Item -ItemType Directory -Path $Destination -Force | Out-Null
