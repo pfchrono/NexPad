@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
@@ -37,6 +39,19 @@ jobs:
         shell: pwsh
         run: |
           .\scripts\package-release.ps1 -Version $env:VERSION_LABEL
+
+      - name: Build and run NexPadTests
+        shell: pwsh
+        run: |
+          msbuild Windows/NexPad.sln /p:Configuration=Release /p:Platform=x64 /t:NexPadTests /m
+          .\release\x64\NexPadTests.exe --gtest_output=xml:test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ steps.version_label.outputs.value }}
+          path: test-results.xml
 
       - name: Verify packaged artifact checksums
         shell: pwsh
