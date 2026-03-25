@@ -73,7 +73,7 @@ TEST(DualSenseBtSimple, ShortBufferReturnsFalse) {
 
 // --- parseDualSenseBluetoothEnhancedReport ---
 // Layout: [0]=0x31, [1]=pad, baseOffset=2 mirrors USB layout.
-// buttons1 at index [8] (baseOffset+6), buttons2 at index [9] (baseOffset+7).
+// buttons1 at index [9] (baseOffset+7), buttons2 at index [10] (baseOffset+8).
 // Min size: 55 bytes (baseOffset+52+1).
 // buttons1=0x80 bit7=Triangle -> XINPUT_GAMEPAD_Y (0x8000)
 // buttons2=0x01 bit0=L1 -> XINPUT_GAMEPAD_LEFT_SHOULDER (0x0100)
