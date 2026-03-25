@@ -31,7 +31,7 @@ New VS project added to `Windows/NexPad.sln`. Configuration:
 
 ### New: `Windows/NexPadTests/test_configfile.cpp`
 
-Tests for `ConfigFile` and `Convert`. `ConfigFile` reads from a path passed to its constructor, so each test writes a temp file (via `std::tmpnam` or `GetTempPath`), constructs `ConfigFile` with that path, then deletes the file in cleanup:
+Tests for `ConfigFile` and `Convert`. `ConfigFile` reads from a path passed to its constructor, so each test writes a temp file (via `GetTempPath`/`GetTempFileName`), constructs `ConfigFile` with that path, then deletes the file in cleanup:
 - `key = value` parsing
 - `#` comment stripping
 - Missing key returns default value
@@ -69,8 +69,8 @@ Expected: `wButtons == 0x2200`, `bRightTrigger == 128`, returns `true`.
 
 Input vector (55 bytes, all zero except):
 ```
-report[0]=0x31, report[9]=0x80 (buttons1: Triangle→XINPUT_GAMEPAD_Y 0x8000),
-report[10]=0x01 (buttons2: L1→XINPUT_GAMEPAD_LEFT_SHOULDER 0x0100)
+report[0]=0x31, report[8]=0x80 (buttons1 at baseOffset+6=index 8: Triangle→XINPUT_GAMEPAD_Y 0x8000),
+report[9]=0x01 (buttons2 at baseOffset+7=index 9: L1→XINPUT_GAMEPAD_LEFT_SHOULDER 0x0100)
 ```
 Expected: `wButtons == 0x8100`, returns `true`.
 
