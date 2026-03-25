@@ -2504,6 +2504,12 @@ namespace
                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_SCROLL_TEXT), createStruct->hInstance, NULL);
       state->configText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_CONFIG_TEXT), createStruct->hInstance, NULL);
+      state->touchpadStatusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                                  0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_STATUS_TEXT), createStruct->hInstance, NULL);
+      state->swapStatusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                              0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_SWAP_STATUS_TEXT), createStruct->hInstance, NULL);
+      state->startWithWindowsStatusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                                          0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_START_WITH_WINDOWS_STATUS_TEXT), createStruct->hInstance, NULL);
       state->versionText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_RIGHT,
                                            0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_VERSION_TEXT), createStruct->hInstance, NULL);
       state->toggleButton = CreateWindowExA(0, "BUTTON", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
@@ -2587,7 +2593,7 @@ namespace
       SendMessage(state->tab, TCM_SETITEMSIZE, 0, MAKELPARAM(92, 24));
 
       setControlFont(state->font,
-                     {state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText, state->versionText,
+                     {state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText, state->touchpadStatusText, state->swapStatusText, state->startWithWindowsStatusText, state->versionText,
                       state->toggleButton,
                       state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit, state->themeLabel, state->themeCombo, state->touchpadSpeedLabel, state->touchpadSpeedEdit, state->touchpadDeadZoneLabel, state->touchpadDeadZoneEdit,
                       state->touchpadCheck, state->swapCheck, state->startWithWindowsCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
