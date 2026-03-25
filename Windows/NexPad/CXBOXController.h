@@ -1,9 +1,17 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include <windows.h>
 #include <xinput.h>
+
+namespace NexPadInternal {
+  bool parseDualSenseUsbReport(const std::vector<BYTE>& report, XINPUT_STATE* state);
+  bool parseDualSenseBluetoothSimpleReport(const std::vector<BYTE>& report, XINPUT_STATE* state);
+  bool parseDualSenseBluetoothEnhancedReport(const std::vector<BYTE>& report, XINPUT_STATE* state);
+  bool parseDualSenseReport(const std::vector<BYTE>& report, XINPUT_STATE* state);
+}
 
 class CXBOXController
 {

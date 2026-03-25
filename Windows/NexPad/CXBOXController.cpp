@@ -788,6 +788,152 @@ namespace
       xButtons |= XINPUT_GAMEPAD_RIGHT_THUMB; // R3
   }
 
+  // DualShock 4 (PS4) USB report: Report ID 0x01, data starts at byte 1.
+  // Layout: LX LY RX RY buttons1 buttons2 PS/TP L2 R2 ...
+  // Bluetooth report: Report ID 0x11, data starts at byte 3.
+  bool parseDualShock4Report(const std::vector<BYTE> &report, XINPUT_STATE *state)
+  {
+    if (!state || report.size() < 10)
+    {
+      return false;
+    }
+
+    size_t baseOffset = 0;
+    if (report[0] == 0x01)
+    {
+      baseOffset = 1; // USB
+    }
+    else if (report[0] == 0x11)
+    {
+      baseOffset = 3; // Bluetooth
+    }
+    else
+    {
+      return false;
+    }
+
+    if (report.size() <= baseOffset + 8)
+    {
+      return false;
+    }
+
+    updateDualShock4BatteryStatus(report, baseOffset);
+    resetTouchpadFrame();
+
+    const BYTE lx = report[baseOffset + 0];
+    const BYTE ly = report[baseOffset + 1];
+    const BYTE rx = report[baseOffset + 2];
+    const BYTE ry = report[baseOffset + 3];
+    const BYTE buttons1 = report[baseOffset + 4]; // dpad nibble (low) + Square/Cross/Circle/Triangle (high)
+    const BYTE buttons2 = report[baseOffset + 5]; // L1/R1/L2/R2/Share/Options/L3/R3
+    const BYTE l2 = report[baseOffset + 7];
+    const BYTE r2 = report[baseOffset + 8];
+
+    WORD xButtons = 0;
+
+    mapDualSenseDpadToXInput(static_cast<BYTE>(buttons1 & 0x0F), xButtons);
+
+    if (buttons1 & 0x10)
+      xButtons |= XINPUT_GAMEPAD_X; // Square
+    if (buttons1 & 0x20)
+      xButtons |= XINPUT_GAMEPAD_A; // Cross
+    if (buttons1 & 0x40)
+      xButtons |= XINPUT_GAMEPAD_B; // Circle
+    if (buttons1 & 0x80)
+      xButtons |= XINPUT_GAMEPAD_Y; // Triangle
+
+    if (buttons2 & 0x01)
+      xButtons |= XINPUT_GAMEPAD_LEFT_SHOULDER; // L1
+    if (buttons2 & 0x02)
+      xButtons |= XINPUT_GAMEPAD_RIGHT_SHOULDER; // R1
+    if (buttons2 & 0x10)
+      xButtons |= XINPUT_GAMEPAD_BACK; // Share
+    if (buttons2 & 0x20)
+      xButtons |= XINPUT_GAMEPAD_START; // Options
+    if (buttons2 & 0x40)
+      xButtons |= XINPUT_GAMEPAD_LEFT_THUMB; // L3
+    if (buttons2 & 0x80)
+      xButtons |= XINPUT_GAMEPAD_RIGHT_THUMB; // R3
+
+    state->dwPacketNumber = ++g_dualSenseState.packetNumber;
+    state->Gamepad.wButtons = xButtons;
+    state->Gamepad.bLeftTrigger = l2;
+    state->Gamepad.bRightTrigger = r2;
+    state->Gamepad.sThumbLX = toThumbAxis(lx);
+    state->Gamepad.sThumbLY = toThumbAxis(static_cast<BYTE>(255 - ly));
+    state->Gamepad.sThumbRX = toThumbAxis(rx);
+    state->Gamepad.sThumbRY = toThumbAxis(static_cast<BYTE>(255 - ry));
+
+    return true;
+  }
+
+  bool readDualSenseState(const DWORD userIndex, XINPUT_STATE *state)
+  {
+    if (userIndex != 0 || !state)
+    {
+      return false;
+    }
+
+    if (!ensureDualSenseConnected())
+    {
+      resetTouchpadFrame();
+      return false;
+    }
+
+    const bool isDualShock4 = (g_dualSenseState.controllerType == PSControllerType::DualShock4);
+
+    std::vector<BYTE> report;
+    const bool hasFreshReport = tryReadPlayStationInputReport(report);
+    if (hasFreshReport)
+    {
+      XINPUT_STATE parsedState;
+      ZeroMemory(&parsedState, sizeof(parsedState));
+
+      const bool parsed = isDualShock4 ? parseDualShock4Report(report, &parsedState)
+                                       : NexPadInternal::parseDualSenseReport(report, &parsedState);
+      if (!parsed)
+      {
+        closeDualSenseDevice();
+        return false;
+      }
+
+      g_dualSenseState.cachedState = parsedState;
+      g_dualSenseState.hasCachedState = true;
+      g_dualSenseState.lastValidReportTick = GetTickCount();
+    }
+    else if (!isDualShock4)
+    {
+      clearTouchpadDeltas();
+
+      if (g_dualSenseState.deviceHandle == INVALID_HANDLE_VALUE)
+      {
+        clearDualSenseCachedState();
+        return false;
+      }
+
+      const DWORD STALE_REPORT_TIMEOUT_MS = 250;
+      if (g_dualSenseState.hasCachedState &&
+          g_dualSenseState.lastValidReportTick != 0 &&
+          (GetTickCount() - g_dualSenseState.lastValidReportTick) > STALE_REPORT_TIMEOUT_MS)
+      {
+        ZeroMemory(&g_dualSenseState.cachedState, sizeof(g_dualSenseState.cachedState));
+        resetTouchpadFrame();
+      }
+    }
+
+    if (g_dualSenseState.hasCachedState)
+    {
+      *state = g_dualSenseState.cachedState;
+      return true;
+    }
+
+    ZeroMemory(state, sizeof(XINPUT_STATE));
+    return true;
+  }
+} // anonymous namespace
+
+namespace NexPadInternal {
+
   bool parseDualSenseUsbReport(const std::vector<BYTE> &report, XINPUT_STATE *state)
   {
     if (!state || report.size() < 12 || report[0] != 0x01)
@@ -941,149 +1087,7 @@ namespace
     return parseDualSenseUsbReport(report, state);
   }
 
-  // DualShock 4 (PS4) USB report: Report ID 0x01, data starts at byte 1.
-  // Layout: LX LY RX RY buttons1 buttons2 PS/TP L2 R2 ...
-  // Bluetooth report: Report ID 0x11, data starts at byte 3.
-  bool parseDualShock4Report(const std::vector<BYTE> &report, XINPUT_STATE *state)
-  {
-    if (!state || report.size() < 10)
-    {
-      return false;
-    }
-
-    size_t baseOffset = 0;
-    if (report[0] == 0x01)
-    {
-      baseOffset = 1; // USB
-    }
-    else if (report[0] == 0x11)
-    {
-      baseOffset = 3; // Bluetooth
-    }
-    else
-    {
-      return false;
-    }
-
-    if (report.size() <= baseOffset + 8)
-    {
-      return false;
-    }
-
-    updateDualShock4BatteryStatus(report, baseOffset);
-    resetTouchpadFrame();
-
-    const BYTE lx = report[baseOffset + 0];
-    const BYTE ly = report[baseOffset + 1];
-    const BYTE rx = report[baseOffset + 2];
-    const BYTE ry = report[baseOffset + 3];
-    const BYTE buttons1 = report[baseOffset + 4]; // dpad nibble (low) + Square/Cross/Circle/Triangle (high)
-    const BYTE buttons2 = report[baseOffset + 5]; // L1/R1/L2/R2/Share/Options/L3/R3
-    const BYTE l2 = report[baseOffset + 7];
-    const BYTE r2 = report[baseOffset + 8];
-
-    WORD xButtons = 0;
-
-    mapDualSenseDpadToXInput(static_cast<BYTE>(buttons1 & 0x0F), xButtons);
-
-    if (buttons1 & 0x10)
-      xButtons |= XINPUT_GAMEPAD_X; // Square
-    if (buttons1 & 0x20)
-      xButtons |= XINPUT_GAMEPAD_A; // Cross
-    if (buttons1 & 0x40)
-      xButtons |= XINPUT_GAMEPAD_B; // Circle
-    if (buttons1 & 0x80)
-      xButtons |= XINPUT_GAMEPAD_Y; // Triangle
-
-    if (buttons2 & 0x01)
-      xButtons |= XINPUT_GAMEPAD_LEFT_SHOULDER; // L1
-    if (buttons2 & 0x02)
-      xButtons |= XINPUT_GAMEPAD_RIGHT_SHOULDER; // R1
-    if (buttons2 & 0x10)
-      xButtons |= XINPUT_GAMEPAD_BACK; // Share
-    if (buttons2 & 0x20)
-      xButtons |= XINPUT_GAMEPAD_START; // Options
-    if (buttons2 & 0x40)
-      xButtons |= XINPUT_GAMEPAD_LEFT_THUMB; // L3
-    if (buttons2 & 0x80)
-      xButtons |= XINPUT_GAMEPAD_RIGHT_THUMB; // R3
-
-    state->dwPacketNumber = ++g_dualSenseState.packetNumber;
-    state->Gamepad.wButtons = xButtons;
-    state->Gamepad.bLeftTrigger = l2;
-    state->Gamepad.bRightTrigger = r2;
-    state->Gamepad.sThumbLX = toThumbAxis(lx);
-    state->Gamepad.sThumbLY = toThumbAxis(static_cast<BYTE>(255 - ly));
-    state->Gamepad.sThumbRX = toThumbAxis(rx);
-    state->Gamepad.sThumbRY = toThumbAxis(static_cast<BYTE>(255 - ry));
-
-    return true;
-  }
-
-  bool readDualSenseState(const DWORD userIndex, XINPUT_STATE *state)
-  {
-    if (userIndex != 0 || !state)
-    {
-      return false;
-    }
-
-    if (!ensureDualSenseConnected())
-    {
-      resetTouchpadFrame();
-      return false;
-    }
-
-    const bool isDualShock4 = (g_dualSenseState.controllerType == PSControllerType::DualShock4);
-
-    std::vector<BYTE> report;
-    const bool hasFreshReport = tryReadPlayStationInputReport(report);
-    if (hasFreshReport)
-    {
-      XINPUT_STATE parsedState;
-      ZeroMemory(&parsedState, sizeof(parsedState));
-
-      const bool parsed = isDualShock4 ? parseDualShock4Report(report, &parsedState)
-                                       : parseDualSenseReport(report, &parsedState);
-      if (!parsed)
-      {
-        closeDualSenseDevice();
-        return false;
-      }
-
-      g_dualSenseState.cachedState = parsedState;
-      g_dualSenseState.hasCachedState = true;
-      g_dualSenseState.lastValidReportTick = GetTickCount();
-    }
-    else if (!isDualShock4)
-    {
-      clearTouchpadDeltas();
-
-      if (g_dualSenseState.deviceHandle == INVALID_HANDLE_VALUE)
-      {
-        clearDualSenseCachedState();
-        return false;
-      }
-
-      const DWORD STALE_REPORT_TIMEOUT_MS = 250;
-      if (g_dualSenseState.hasCachedState &&
-          g_dualSenseState.lastValidReportTick != 0 &&
-          (GetTickCount() - g_dualSenseState.lastValidReportTick) > STALE_REPORT_TIMEOUT_MS)
-      {
-        ZeroMemory(&g_dualSenseState.cachedState, sizeof(g_dualSenseState.cachedState));
-        resetTouchpadFrame();
-      }
-    }
-
-    if (g_dualSenseState.hasCachedState)
-    {
-      *state = g_dualSenseState.cachedState;
-      return true;
-    }
-
-    ZeroMemory(state, sizeof(XINPUT_STATE));
-    return true;
-  }
-}
+} // namespace NexPadInternal
 
 CXBOXController::CXBOXController(int playerNumber)
 {
