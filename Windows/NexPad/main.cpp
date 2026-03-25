@@ -39,6 +39,7 @@
 
 #include "AppVersion.h"
 #include "NexPad.h"
+#include "RuntimeLoop.h"
 #include "resource.h"
 
 bool ChangeVolume(double nVolume, bool bScalar);
@@ -68,6 +69,8 @@ namespace
     IDC_TOUCHPAD_CHECK,
     IDC_SWAP_CHECK,
     IDC_START_WITH_WINDOWS_CHECK,
+    IDC_THEME_LABEL,
+    IDC_THEME_COMBO,
     IDC_PRESET_LIST,
     IDC_PRESET_NAME_EDIT,
     IDC_PRESET_REFRESH_BUTTON,
@@ -95,12 +98,14 @@ namespace
   {
     enum class ThemeMode
     {
+      Dark,
       Light,
-      Dark
+      HighContrast
     };
 
     CXBOXController controller;
     NexPad nexPad;
+    RuntimeLoop runtimeLoop;
     HWND tab = NULL;
     HWND statusPage = NULL;
     HWND settingsPage = NULL;
@@ -124,6 +129,8 @@ namespace
     HWND touchpadCheck = NULL;
     HWND swapCheck = NULL;
     HWND startWithWindowsCheck = NULL;
+    HWND themeLabel = NULL;
+    HWND themeCombo = NULL;
     HWND presetList = NULL;
     HWND presetNameEdit = NULL;
     HWND presetRefreshButton = NULL;
@@ -179,7 +186,8 @@ namespace
 
     GuiState()
         : controller(1),
-          nexPad(&controller)
+          nexPad(&controller),
+          runtimeLoop(nexPad, controller)
     {
     }
   };
@@ -1093,14 +1101,40 @@ namespace
 
     destroyThemeResources(state);
 
-    state->themeMode = GuiState::ThemeMode::Dark;
-    state->backgroundColor = RGB(0, 0, 0);
-    state->panelColor = RGB(0, 0, 0);
-    state->textColor = RGB(255, 255, 255);
-    state->mutedTextColor = RGB(170, 170, 170);
-    state->editBackgroundColor = RGB(0, 0, 0);
-    state->buttonColor = RGB(0, 0, 0);
-    state->buttonTextColor = RGB(255, 255, 255);
+    const int configuredThemeMode = state->nexPad.getUiThemeMode();
+    if (configuredThemeMode == 1)
+    {
+      state->themeMode = GuiState::ThemeMode::Light;
+      state->backgroundColor = RGB(245, 245, 245);
+      state->panelColor = RGB(255, 255, 255);
+      state->textColor = RGB(25, 25, 25);
+      state->mutedTextColor = RGB(90, 90, 90);
+      state->editBackgroundColor = RGB(255, 255, 255);
+      state->buttonColor = RGB(240, 240, 240);
+      state->buttonTextColor = RGB(25, 25, 25);
+    }
+    else if (configuredThemeMode == 2)
+    {
+      state->themeMode = GuiState::ThemeMode::HighContrast;
+      state->backgroundColor = RGB(0, 0, 0);
+      state->panelColor = RGB(0, 0, 0);
+      state->textColor = RGB(255, 255, 255);
+      state->mutedTextColor = RGB(255, 255, 0);
+      state->editBackgroundColor = RGB(0, 0, 0);
+      state->buttonColor = RGB(0, 0, 0);
+      state->buttonTextColor = RGB(255, 255, 255);
+    }
+    else
+    {
+      state->themeMode = GuiState::ThemeMode::Dark;
+      state->backgroundColor = RGB(0, 0, 0);
+      state->panelColor = RGB(0, 0, 0);
+      state->textColor = RGB(255, 255, 255);
+      state->mutedTextColor = RGB(170, 170, 170);
+      state->editBackgroundColor = RGB(0, 0, 0);
+      state->buttonColor = RGB(0, 0, 0);
+      state->buttonTextColor = RGB(255, 255, 255);
+    }
 
     state->backgroundBrush = CreateSolidBrush(state->backgroundColor);
     state->panelBrush = CreateSolidBrush(state->panelColor);
@@ -1158,6 +1192,7 @@ namespace
     invalidateIfNotNull(state->batteryBar);
     invalidateIfNotNull(state->applyMappingButton);
     invalidateIfNotNull(state->speedCombo);
+    invalidateIfNotNull(state->themeCombo);
     invalidateIfNotNull(state->presetList);
     invalidateIfNotNull(state->mappingKeyCombo);
     invalidateIfNotNull(state->mappingValueCombo);
@@ -1844,6 +1879,18 @@ namespace
     touchpadDeadZone << state->nexPad.getTouchpadDeadZone();
     SetWindowTextA(state->touchpadDeadZoneEdit, touchpadDeadZone.str().c_str());
 
+    SendMessage(state->themeCombo, CB_RESETCONTENT, 0, 0);
+    SendMessageA(state->themeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Dark"));
+    SendMessageA(state->themeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("Light"));
+    SendMessageA(state->themeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("High Contrast"));
+    int selectedTheme = state->nexPad.getUiThemeMode();
+    if (selectedTheme < 0 || selectedTheme > 2)
+    {
+      selectedTheme = 0;
+    }
+    SendMessage(state->themeCombo, CB_SETCURSEL, selectedTheme, 0);
+    refreshComboDisplay(state->themeCombo);
+
     SendMessage(state->touchpadCheck, BM_SETCHECK, state->nexPad.getTouchpadEnabled() ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessage(state->swapCheck, BM_SETCHECK, state->nexPad.getSwapThumbsticks() ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessage(state->startWithWindowsCheck, BM_SETCHECK, state->nexPad.getStartWithWindows() ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -2023,6 +2070,8 @@ namespace
     MoveWindow(state->scrollLabel, margin, margin + 56, 160, labelHeight, TRUE);
     MoveWindow(state->scrollEdit, margin, margin + 76, 120, 24, TRUE);
     applyEditPadding(state->scrollEdit, 6, 0);
+    MoveWindow(state->themeLabel, margin + 272, margin + 56, 180, labelHeight, TRUE);
+    MoveWindow(state->themeCombo, margin + 272, margin + 76, 220, 240, TRUE);
     MoveWindow(state->touchpadSpeedLabel, margin, margin + 112, 160, labelHeight, TRUE);
     MoveWindow(state->touchpadSpeedEdit, margin, margin + 132, 120, 24, TRUE);
     applyEditPadding(state->touchpadSpeedEdit, 6, 0);
@@ -2106,10 +2155,23 @@ namespace
     state->nexPad.setTouchpadEnabled(SendMessage(state->touchpadCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     state->nexPad.setSwapThumbsticks(SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
 
+    bool themeChanged = false;
+    const LRESULT selectedTheme = SendMessage(state->themeCombo, CB_GETCURSEL, 0, 0);
+    if (selectedTheme != CB_ERR)
+    {
+      const int previousTheme = state->nexPad.getUiThemeMode();
+      state->nexPad.setUiThemeMode(static_cast<int>(selectedTheme));
+      themeChanged = previousTheme != state->nexPad.getUiThemeMode();
+    }
+
     const int desiredStartWithWindows = SendMessage(state->startWithWindowsCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0;
     std::string startupError;
     const bool startupUpdated = state->nexPad.setStartWithWindows(desiredStartWithWindows, startupError);
     state->nexPad.saveConfigFile();
+    if (themeChanged)
+    {
+      refreshTheme(window);
+    }
     if (!startupUpdated)
     {
       const std::string logMessage = std::string("Unable to update Start with Windows: ") + startupError;
@@ -2427,6 +2489,10 @@ namespace
                                            12, 68, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
       state->scrollEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
                                           0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_SCROLL_EDIT), createStruct->hInstance, NULL);
+      state->themeLabel = CreateWindowExA(0, "STATIC", "Theme mode", WS_CHILD | WS_VISIBLE,
+                  12, 68, 160, 20, state->settingsPage, reinterpret_cast<HMENU>(IDC_THEME_LABEL), createStruct->hInstance, NULL);
+      state->themeCombo = CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | (kUseNativeComboPrototype ? CBS_DROPDOWN : (CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS)) | WS_VSCROLL,
+                  0, 0, 0, 0, state->settingsPage, reinterpret_cast<HMENU>(IDC_THEME_COMBO), createStruct->hInstance, NULL);
       state->touchpadSpeedLabel = CreateWindowExA(0, "STATIC", "Touchpad cursor speed", WS_CHILD | WS_VISIBLE,
                                                   12, 104, 160, 20, state->settingsPage, NULL, createStruct->hInstance, NULL);
       state->touchpadSpeedEdit = CreateWindowExA(0, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
@@ -2491,7 +2557,7 @@ namespace
       setControlFont(state->font,
                      {state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText, state->versionText,
                       state->toggleButton,
-                      state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit, state->touchpadSpeedLabel, state->touchpadSpeedEdit, state->touchpadDeadZoneLabel, state->touchpadDeadZoneEdit,
+                      state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit, state->themeLabel, state->themeCombo, state->touchpadSpeedLabel, state->touchpadSpeedEdit, state->touchpadDeadZoneLabel, state->touchpadDeadZoneEdit,
                       state->touchpadCheck, state->swapCheck, state->startWithWindowsCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
                       state->applyButton, state->saveButton, state->reloadButton, state->importButton, state->exportButton, state->settingsNote,
                       state->mappingsHelp, state->mappingKeyCombo, state->mappingValueCombo, state->mappingDescription, state->applyMappingButton});
@@ -2506,6 +2572,7 @@ namespace
       applyNativeTabPalette(state->tab, state);
       applyControlTheme(state->toggleButton);
       applyControlTheme(state->speedCombo);
+      applyControlTheme(state->themeCombo);
       applyControlTheme(state->touchpadCheck);
       applyControlTheme(state->swapCheck);
       applyControlTheme(state->startWithWindowsCheck);
@@ -2546,18 +2613,21 @@ namespace
       if (!kUseNativeComboPrototype)
       {
         SetWindowSubclass(state->speedCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
+        SetWindowSubclass(state->themeCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
         SetWindowSubclass(state->presetList, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
         SetWindowSubclass(state->mappingKeyCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
         SetWindowSubclass(state->mappingValueCombo, comboSubclassProc, 1, reinterpret_cast<DWORD_PTR>(state));
       }
 
       applyComboChildTheme(state->speedCombo, state->font, kUseNativeComboPrototype);
+      applyComboChildTheme(state->themeCombo, state->font, kUseNativeComboPrototype);
       applyComboChildTheme(state->presetList, state->font, kUseNativeComboPrototype);
       applyComboChildTheme(state->mappingKeyCombo, state->font, kUseNativeComboPrototype);
       applyComboChildTheme(state->mappingValueCombo, state->font, false);
       applyThemePalette(state);
       applyNativeTabPalette(state->tab, state);
       state->nexPad.loadConfigFile();
+      refreshTheme(window);
       populateSettingsControls(window);
       populatePresetList(window);
       populateMappingEditor(window);
@@ -2774,7 +2844,7 @@ namespace
     case WM_TIMER:
       if (state)
       {
-        state->nexPad.loop();
+        state->runtimeLoop.tick();
         updateStatusControls(window);
       }
       return 0;
@@ -2805,6 +2875,7 @@ namespace
         if (!kUseNativeComboPrototype)
         {
           RemoveWindowSubclass(state->speedCombo, comboSubclassProc, 1);
+          RemoveWindowSubclass(state->themeCombo, comboSubclassProc, 1);
           RemoveWindowSubclass(state->presetList, comboSubclassProc, 1);
           RemoveWindowSubclass(state->mappingKeyCombo, comboSubclassProc, 1);
           RemoveWindowSubclass(state->mappingValueCombo, comboSubclassProc, 1);
@@ -2821,6 +2892,13 @@ namespace
           if (GetComboBoxInfo(state->presetList, &presetInfo) && presetInfo.hwndList != NULL)
           {
             RemoveWindowSubclass(presetInfo.hwndList, comboListSubclassProc, 1);
+          }
+
+          COMBOBOXINFO themeInfo = {};
+          themeInfo.cbSize = sizeof(themeInfo);
+          if (GetComboBoxInfo(state->themeCombo, &themeInfo) && themeInfo.hwndList != NULL)
+          {
+            RemoveWindowSubclass(themeInfo.hwndList, comboListSubclassProc, 1);
           }
 
           COMBOBOXINFO mappingKeyInfo = {};

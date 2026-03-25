@@ -47,6 +47,7 @@ private:
   const int SLEEP_AMOUNT = 1000 / FPS; // Number of milliseconds to sleep per iteration.
   int SWAP_THUMBSTICKS = 0;            // Swaps the function of the thumbsticks when not equal to 0.
   int START_WITH_WINDOWS = 0;          // Registers NexPad to launch at Windows sign-in for the current user when non-zero.
+  int UI_THEME_MODE = 0;               // UI theme mode (0 = dark, 1 = light, 2 = high contrast).
 
   XINPUT_STATE _currentState;
 
@@ -75,9 +76,13 @@ private:
   bool _disabled = false;          // Disables the NexPad controller mapping.
   bool _vibrationDisabled = false; // Prevents NexPad from producing controller vibrations.
   bool _hidden = false;            // NexPad main window visibility.
-  bool _controllerWasConnected = false;
   bool _lTriggerPrevious = false; // Previous state of the left trigger.
   bool _rTriggerPrevious = false; // Previous state of the right trigger.
+  bool _vibrationActive = false;
+  int _vibrationLeftMotor = 0;
+  int _vibrationRightMotor = 0;
+  DWORD _vibrationEndTick = 0;
+  DWORD _vibrationToggleCooldownUntilTick = 0;
 
   std::vector<float> speeds;            // Contains actual speeds to choose
   std::vector<std::string> speed_names; // Contains display names of speeds to display
@@ -135,9 +140,15 @@ public:
 
   void loadConfigFile();
 
-  void loop();
+  void setCurrentState(const XINPUT_STATE &state);
 
-  void pulseVibrate(const int duration, const int l, const int r) const;
+  void processCurrentState();
+
+  void onControllerDisconnected();
+
+  void pulseVibrate(const int duration, const int l, const int r);
+
+  void stopVibration();
 
   void toggleWindowVisibility();
 
@@ -219,9 +230,13 @@ public:
 
   int getStartWithWindows() const;
 
+  int getUiThemeMode() const;
+
   void setSwapThumbsticks(int value);
 
   bool setStartWithWindows(int value, std::string &errorMessage);
+
+  void setUiThemeMode(int value);
 
   const std::string &getConfigPath() const;
 
@@ -243,6 +258,9 @@ public:
 
 private:
   bool applyStartWithWindowsSetting(bool enabled, bool notify, std::string *errorMessage);
+  void updateVibrationState();
+  void startVibrationPulse(int durationMs, int leftMotor, int rightMotor);
+  bool isVibrationToggleCoolingDown(DWORD now) const;
 
   void resetTouchpadInteractionState();
 

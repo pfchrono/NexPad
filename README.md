@@ -145,6 +145,7 @@ Important config groups:
 * `CURSOR_SPEED`, `SCROLL_SPEED`, `SWAP_THUMBSTICKS`, and dead-zone values: movement behavior
 * `TOUCHPAD_ENABLED`, `TOUCHPAD_DEAD_ZONE`, and `TOUCHPAD_SPEED`: DualSense touchpad mouse input behavior
 * `START_WITH_WINDOWS`: whether NexPad registers itself to launch for the current user at Windows sign-in
+* `UI_THEME_MODE`: UI palette preference (`0 = dark`, `1 = light`, `2 = high contrast`)
 
 DualSense touchpad support
 ======

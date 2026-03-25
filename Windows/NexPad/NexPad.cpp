@@ -1,5 +1,4 @@
 #include "NexPad.h"
-#include "NexPad.h"
 #include "ConfigFile.h"
 
 #include <fstream>
@@ -7,6 +6,11 @@
 
 namespace
 {
+  bool hasTickElapsed(const DWORD now, const DWORD target)
+  {
+    return static_cast<LONG>(now - target) >= 0;
+  }
+
   const char *kStartupRunKeyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
   const char *kStartupRunValueName = "NexPad";
 
@@ -444,6 +448,11 @@ void NexPad::setStatusCallback(const std::function<void(const std::string &)> &c
   _statusCallback = callback;
 }
 
+void NexPad::setCurrentState(const XINPUT_STATE &state)
+{
+  _currentState = state;
+}
+
 bool NexPad::isDisabled() const
 {
   return _disabled;
@@ -512,6 +521,11 @@ int NexPad::getSwapThumbsticks() const
 int NexPad::getStartWithWindows() const
 {
   return START_WITH_WINDOWS;
+}
+
+int NexPad::getUiThemeMode() const
+{
+  return UI_THEME_MODE;
 }
 
 const std::string &NexPad::getConfigPath() const
@@ -623,6 +637,33 @@ bool NexPad::setStartWithWindows(int value, std::string &errorMessage)
   return applyStartWithWindowsSetting(value != 0, true, &errorMessage);
 }
 
+void NexPad::setUiThemeMode(int value)
+{
+  if (value < 0)
+  {
+    value = 0;
+  }
+  else if (value > 2)
+  {
+    value = 2;
+  }
+
+  UI_THEME_MODE = value;
+
+  if (UI_THEME_MODE == 1)
+  {
+    notifyStatus("UI theme set to Light");
+  }
+  else if (UI_THEME_MODE == 2)
+  {
+    notifyStatus("UI theme set to High Contrast");
+  }
+  else
+  {
+    notifyStatus("UI theme set to Dark");
+  }
+}
+
 void NexPad::notifyStatus(const std::string &message) const
 {
   if (_statusCallback)
@@ -721,6 +762,16 @@ void NexPad::loadConfigFile()
   if (!applyStartWithWindowsSetting(START_WITH_WINDOWS != 0, false, &startupError))
   {
     notifyStatus("Unable to sync Start with Windows setting: " + startupError);
+  }
+
+  UI_THEME_MODE = static_cast<int>(strtol(cfg.getValueOfKey<std::string>("UI_THEME_MODE", "0").c_str(), 0, 0));
+  if (UI_THEME_MODE < 0)
+  {
+    UI_THEME_MODE = 0;
+  }
+  else if (UI_THEME_MODE > 2)
+  {
+    UI_THEME_MODE = 2;
   }
 
   unsigned int configuredSpeedIndex = static_cast<unsigned int>(strtoul(cfg.getValueOfKey<std::string>("CURRENT_SPEED_INDEX", "0").c_str(), 0, 0));
@@ -1004,6 +1055,7 @@ bool NexPad::saveConfigFile()
   touchpadSpeedValue << std::fixed << std::setprecision(3) << TOUCHPAD_SPEED;
   updateConfigLine(lines, "TOUCHPAD_SPEED", touchpadSpeedValue.str());
   updateConfigLine(lines, "START_WITH_WINDOWS", std::to_string(START_WITH_WINDOWS));
+  updateConfigLine(lines, "UI_THEME_MODE", std::to_string(UI_THEME_MODE));
   updateConfigLine(lines, "CONFIG_MOUSE_LEFT", formatHexValue(CONFIG_MOUSE_LEFT));
   updateConfigLine(lines, "CONFIG_MOUSE_RIGHT", formatHexValue(CONFIG_MOUSE_RIGHT));
   updateConfigLine(lines, "CONFIG_MOUSE_MIDDLE", formatHexValue(CONFIG_MOUSE_MIDDLE));
@@ -1180,7 +1232,8 @@ std::string NexPad::getProfileText() const
          << "TOUCHPAD_SPEED = " << TOUCHPAD_SPEED << "\r\n";
   stream << "SWAP_THUMBSTICKS = " << SWAP_THUMBSTICKS << "\r\n";
   stream << "TOUCHPAD_ENABLED = " << TOUCHPAD_ENABLED << "\r\n";
-  stream << "TOUCHPAD_DEAD_ZONE = " << TOUCHPAD_DEAD_ZONE << "\r\n\r\n";
+  stream << "TOUCHPAD_DEAD_ZONE = " << TOUCHPAD_DEAD_ZONE << "\r\n";
+  stream << "UI_THEME_MODE = " << UI_THEME_MODE << "\r\n\r\n";
   stream << getMappingsText();
   return stream.str();
 }
@@ -1229,6 +1282,11 @@ bool NexPad::applyProfileText(const std::string &profileText)
     TOUCHPAD_SPEED = parsedTouchpadSpeed;
   }
 
+  if (tryParseConfigValue(profileText, "UI_THEME_MODE", parsedInteger))
+  {
+    setUiThemeMode(static_cast<int>(parsedInteger));
+  }
+
   notifyStatus("Imported preset profile");
   return true;
 }
@@ -1273,24 +1331,9 @@ void NexPad::setDisabled(bool disabled)
   pulseVibrate(duration, intensity, intensity);
 }
 
-// Description:
-//   The main program loop. Handles the gamepad inputs and converts them
-//     to system inputs based on the mapping provided by the configuration
-//     file.
-void NexPad::loop()
+void NexPad::processCurrentState()
 {
-  _currentState = _controller->GetState();
-  if (!_controller->GetLastConnectionState())
-  {
-    if (_controllerWasConnected)
-    {
-      releaseAllActiveInputs();
-    }
-    _controllerWasConnected = false;
-    return;
-  }
-
-  _controllerWasConnected = true;
+  updateVibrationState();
 
   // Disable NexPad
   handleDisableButton();
@@ -1500,14 +1543,22 @@ void NexPad::updateTouchpadInteractionState()
 //   duration   The length of time in milliseconds to vibrate for
 //   l          The speed (intensity) of the left vibration motor
 //   r          The speed (intensity) of the right vibration motor
-void NexPad::pulseVibrate(const int duration, const int l, const int r) const
+void NexPad::pulseVibrate(const int duration, const int l, const int r)
 {
-  if (!_vibrationDisabled)
+  startVibrationPulse(duration, l, r);
+}
+
+void NexPad::stopVibration()
+{
+  if (_controller != NULL)
   {
-    _controller->Vibrate(l, r);
-    Sleep(duration);
     _controller->Vibrate(0, 0);
   }
+
+  _vibrationActive = false;
+  _vibrationLeftMotor = 0;
+  _vibrationRightMotor = 0;
+  _vibrationEndTick = 0;
 }
 
 // Description:
@@ -1527,11 +1578,16 @@ void NexPad::handleDisableButton()
 void NexPad::handleVibrationButton()
 {
   setXboxClickState(CONFIG_DISABLE_VIBRATION);
-  if (_xboxClickIsDown[CONFIG_DISABLE_VIBRATION])
+  const DWORD now = GetTickCount();
+  if (_xboxClickIsDown[CONFIG_DISABLE_VIBRATION] && !isVibrationToggleCoolingDown(now))
   {
     _vibrationDisabled = !_vibrationDisabled;
+    _vibrationToggleCooldownUntilTick = now + 1000;
+    if (_vibrationDisabled)
+    {
+      stopVibration();
+    }
     notifyStatus(std::string("Vibration ") + (_vibrationDisabled ? "Disabled" : "Enabled"));
-    Sleep(1000);
   }
 }
 
@@ -2110,6 +2166,12 @@ void NexPad::releaseAllActiveInputs()
   _xboxClickIsDownLong.clear();
   _xboxClickDownLength.clear();
   _xboxClickIsUp.clear();
+  stopVibration();
+}
+
+void NexPad::onControllerDisconnected()
+{
+  releaseAllActiveInputs();
 }
 
 void NexPad::resetTouchpadInteractionState()
@@ -2125,6 +2187,53 @@ void NexPad::resetTouchpadInteractionState()
   _touchpadScrollRawY = 0.0f;
   _touchpadScrollXRest = 0.0f;
   _touchpadScrollYRest = 0.0f;
+}
+
+void NexPad::updateVibrationState()
+{
+  if (_vibrationDisabled)
+  {
+    if (_vibrationActive)
+    {
+      stopVibration();
+    }
+    return;
+  }
+
+  if (!_vibrationActive)
+  {
+    return;
+  }
+
+  const DWORD now = GetTickCount();
+  if (hasTickElapsed(now, _vibrationEndTick))
+  {
+    stopVibration();
+  }
+}
+
+void NexPad::startVibrationPulse(int durationMs, int leftMotor, int rightMotor)
+{
+  if (_vibrationDisabled || _controller == NULL)
+  {
+    return;
+  }
+
+  _vibrationLeftMotor = leftMotor;
+  _vibrationRightMotor = rightMotor;
+  _vibrationEndTick = GetTickCount() + static_cast<DWORD>(durationMs < 0 ? 0 : durationMs);
+  _vibrationActive = true;
+  _controller->Vibrate(_vibrationLeftMotor, _vibrationRightMotor);
+}
+
+bool NexPad::isVibrationToggleCoolingDown(const DWORD now) const
+{
+  if (_vibrationToggleCooldownUntilTick == 0)
+  {
+    return false;
+  }
+
+  return !hasTickElapsed(now, _vibrationToggleCooldownUntilTick);
 }
 
 // Description:
