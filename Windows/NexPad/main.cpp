@@ -88,7 +88,10 @@ namespace
     IDC_RELOAD_BUTTON,
     IDC_IMPORT_BUTTON,
     IDC_EXPORT_BUTTON,
-    IDC_SETTINGS_NOTE
+    IDC_SETTINGS_NOTE,
+    IDC_TOUCHPAD_STATUS_TEXT,
+    IDC_SWAP_STATUS_TEXT,
+    IDC_START_WITH_WINDOWS_STATUS_TEXT,
   };
 
   const UINT WMAPP_TRAYICON = WM_APP + 1;
@@ -120,6 +123,9 @@ namespace
     HWND speedText = NULL;
     HWND scrollText = NULL;
     HWND configText = NULL;
+    HWND touchpadStatusText = NULL;
+    HWND swapStatusText = NULL;
+    HWND startWithWindowsStatusText = NULL;
     HWND versionText = NULL;
     HWND toggleButton = NULL;
     HWND startupInfo = NULL;
@@ -185,6 +191,9 @@ namespace
     std::string cachedSpeedText;
     std::string cachedScrollText;
     std::string cachedConfigText;
+    std::string cachedTouchpadStatusText;
+    std::string cachedSwapStatusText;
+    std::string cachedStartWithWindowsStatusText;
     std::string cachedVersionText;
     std::string cachedToggleButtonText;
     std::string cachedTrayTooltip;
@@ -1846,6 +1855,12 @@ namespace
     setTextIfChanged(state->scrollText, state->cachedScrollText, scrollStream.str());
 
     setTextIfChanged(state->configText, state->cachedConfigText, "Config: " + state->nexPad.getConfigPath());
+    setTextIfChanged(state->touchpadStatusText, state->cachedTouchpadStatusText,
+                     std::string("Touchpad: ") + (state->nexPad.getTouchpadEnabled() ? "Enabled" : "Disabled"));
+    setTextIfChanged(state->swapStatusText, state->cachedSwapStatusText,
+                     std::string("Swap thumbsticks: ") + (state->nexPad.getSwapThumbsticks() ? "On" : "Off"));
+    setTextIfChanged(state->startWithWindowsStatusText, state->cachedStartWithWindowsStatusText,
+                     std::string("Start with Windows: ") + (state->nexPad.getStartWithWindows() ? "On" : "Off"));
     setTextIfChanged(state->versionText, state->cachedVersionText, getDisplayVersionText());
     setTextIfChanged(state->toggleButton, state->cachedToggleButtonText, state->nexPad.isDisabled() ? "Enable NexPad" : "Disable NexPad");
     updateTrayTooltip(window);
@@ -2065,8 +2080,10 @@ namespace
     MoveWindow(state->speedText, margin, margin + 112, pageWidth - margin * 2, labelHeight, TRUE);
     MoveWindow(state->scrollText, margin, margin + 140, pageWidth - margin * 2, labelHeight, TRUE);
     MoveWindow(state->configText, margin, margin + 168, pageWidth - margin * 2, labelHeight, TRUE);
-
-    const int textTop = margin + 200;
+    MoveWindow(state->touchpadStatusText, margin, margin + 196, pageWidth - margin * 2, labelHeight, TRUE);
+    MoveWindow(state->swapStatusText, margin, margin + 224, pageWidth - margin * 2, labelHeight, TRUE);
+    MoveWindow(state->startWithWindowsStatusText, margin, margin + 252, pageWidth - margin * 2, labelHeight, TRUE);
+    const int textTop = margin + 284;
     const int footerHeight = 20;
     const int textHeight = (pageHeight - textTop - margin * 2 - footerHeight) / 2;
     MoveWindow(state->startupInfo, margin, textTop, pageWidth - margin * 2, textHeight, TRUE);
@@ -2495,6 +2512,12 @@ namespace
                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_SCROLL_TEXT), createStruct->hInstance, NULL);
       state->configText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
                                           0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_CONFIG_TEXT), createStruct->hInstance, NULL);
+      state->touchpadStatusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                                  0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_TOUCHPAD_STATUS_TEXT), createStruct->hInstance, NULL);
+      state->swapStatusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                              0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_SWAP_STATUS_TEXT), createStruct->hInstance, NULL);
+      state->startWithWindowsStatusText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE,
+                                                          0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_START_WITH_WINDOWS_STATUS_TEXT), createStruct->hInstance, NULL);
       state->versionText = CreateWindowExA(0, "STATIC", "", WS_CHILD | WS_VISIBLE | SS_RIGHT,
                                            0, 0, 0, 0, state->statusPage, reinterpret_cast<HMENU>(IDC_VERSION_TEXT), createStruct->hInstance, NULL);
       state->toggleButton = CreateWindowExA(0, "BUTTON", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
@@ -2578,7 +2601,7 @@ namespace
       SendMessage(state->tab, TCM_SETITEMSIZE, 0, MAKELPARAM(92, 24));
 
       setControlFont(state->font,
-                     {state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText, state->versionText,
+                     {state->tab, state->statusText, state->controllerText, state->controllerTypeText, state->batteryText, state->speedText, state->scrollText, state->configText, state->touchpadStatusText, state->swapStatusText, state->startWithWindowsStatusText, state->versionText,
                       state->toggleButton,
                       state->startupInfo, state->outputInfo, state->speedLabel, state->speedCombo, state->scrollLabel, state->scrollEdit, state->themeLabel, state->themeCombo, state->touchpadSpeedLabel, state->touchpadSpeedEdit, state->touchpadDeadZoneLabel, state->touchpadDeadZoneEdit,
                       state->touchpadCheck, state->swapCheck, state->startWithWindowsCheck, state->presetListLabel, state->presetList, state->presetNameLabel, state->presetNameEdit, state->presetRefreshButton, state->presetSaveButton, state->presetDeleteButton,
@@ -2746,6 +2769,10 @@ namespace
           const LRESULT checked = SendMessage(state->swapCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
           SendMessage(state->swapCheck, BM_SETCHECK, checked, 0);
           InvalidateRect(state->swapCheck, NULL, TRUE);
+          state->nexPad.setSwapThumbsticks(checked == BST_CHECKED ? 1 : 0);
+          state->nexPad.saveConfigFile();
+          updateStatusControls(window);
+          appendOutput(window, checked == BST_CHECKED ? "Swap thumbsticks: on." : "Swap thumbsticks: off.");
         }
         return 0;
 
@@ -2755,6 +2782,23 @@ namespace
           const LRESULT checked = SendMessage(state->startWithWindowsCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
           SendMessage(state->startWithWindowsCheck, BM_SETCHECK, checked, 0);
           InvalidateRect(state->startWithWindowsCheck, NULL, TRUE);
+          std::string startupError;
+          const bool ok = state->nexPad.setStartWithWindows(checked == BST_CHECKED ? 1 : 0, startupError);
+          if (!ok)
+          {
+            SendMessage(state->startWithWindowsCheck, BM_SETCHECK,
+                        checked == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED, 0);
+            InvalidateRect(state->startWithWindowsCheck, NULL, TRUE);
+            const std::string msg = std::string("Unable to update Start with Windows: ") + startupError;
+            appendOutput(window, msg);
+            MessageBoxA(window, msg.c_str(), "NexPad", MB_OK | MB_ICONERROR);
+          }
+          else
+          {
+            state->nexPad.saveConfigFile();
+            updateStatusControls(window);
+            appendOutput(window, checked == BST_CHECKED ? "Start with Windows: on." : "Start with Windows: off.");
+          }
         }
         return 0;
 
@@ -2764,6 +2808,10 @@ namespace
           const LRESULT checked = SendMessage(state->touchpadCheck, BM_GETCHECK, 0, 0) == BST_CHECKED ? BST_UNCHECKED : BST_CHECKED;
           SendMessage(state->touchpadCheck, BM_SETCHECK, checked, 0);
           InvalidateRect(state->touchpadCheck, NULL, TRUE);
+          state->nexPad.setTouchpadEnabled(checked == BST_CHECKED ? 1 : 0);
+          state->nexPad.saveConfigFile();
+          updateStatusControls(window);
+          appendOutput(window, checked == BST_CHECKED ? "Touchpad enabled." : "Touchpad disabled.");
         }
         return 0;
 

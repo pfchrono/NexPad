@@ -33,3 +33,4 @@ Windows/NexPad/Resource.aps
 # Archived repository metadata from the pre-rebrand history
 /.git-archive-*/
 .vscode/*
+.worktrees/
